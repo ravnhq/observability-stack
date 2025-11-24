@@ -1,180 +1,372 @@
-# Minimal Metrics API
+# Express.js Observability Implementation Guide
 
-A clean, minimal Express + TypeScript + PostgreSQL + Prisma setup for metrics collection, ready to be plugged into Grafana/Tempo/Loki/Mimir observability stack.
+A complete guide to add **OpenTelemetry** observability (metrics, traces, logs) to any Express.js project for integration with **Grafana**, **Tempo**, **Loki**, and **Mimir**.
 
-## 🚀 Quick Start
+## 🎯 What You'll Get
 
-### 1. Install Dependencies
+- **Automatic HTTP instrumentation** (request duration, status codes, paths)
+- **Distributed tracing** across services
+- **Custom metrics** for business logic
+- **Structured logging** with correlation
+- **Ready for Grafana dashboards**
+
+## 🚀 Step-by-Step Implementation
+
+### 1. Install OpenTelemetry Dependencies
+
 ```bash
-cd minimal-metrics-api
-npm install
+npm install @opentelemetry/sdk-node \
+            @opentelemetry/auto-instrumentations-node \
+            @opentelemetry/exporter-trace-otlp-http \
+            @opentelemetry/exporter-metrics-otlp-http \
+            @opentelemetry/sdk-metrics \
+            @opentelemetry/api \
+            dotenv
 ```
 
-### 2. Setup Database
+### 2. Create Telemetry Configuration
+
+Create `src/config/telemetry.ts`:
+
+```typescript
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+
+// Environment configuration
+const TELEMETRY_CONFIG = {
+  enabled: process.env.TELEMETRY_ENABLED !== 'false',
+  serviceName: process.env.SERVICE_NAME || 'my-express-app',
+  serviceVersion: process.env.SERVICE_VERSION || '1.0.0',
+  otlpEndpoint: process.env.OTLP_ENDPOINT || 'http://localhost:4318',
+  exportInterval: parseInt(process.env.METRIC_EXPORT_INTERVAL || '10000'),
+  environment: process.env.NODE_ENV || 'development',
+};
+
+// Initialize OpenTelemetry SDK
+export const initTelemetry = () => {
+  if (!TELEMETRY_CONFIG.enabled) {
+    console.log('📊 Telemetry disabled via TELEMETRY_ENABLED=false');
+    return null;
+  }
+
+  const sdk = new NodeSDK({
+    traceExporter: new OTLPTraceExporter({
+      url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/traces`,
+    }),
+    metricReader: new PeriodicExportingMetricReader({
+      exporter: new OTLPMetricExporter({
+        url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/metrics`,
+      }),
+      exportIntervalMillis: TELEMETRY_CONFIG.exportInterval,
+    }),
+    instrumentations: [
+      getNodeAutoInstrumentations({
+        '@opentelemetry/instrumentation-http': { enabled: true },
+        '@opentelemetry/instrumentation-express': { enabled: true },
+        '@opentelemetry/instrumentation-fs': { enabled: false },
+        '@opentelemetry/instrumentation-dns': { enabled: false },
+      }),
+    ],
+  });
+
+  sdk.start();
+  
+  console.log(`📊 OpenTelemetry initialized for ${TELEMETRY_CONFIG.serviceName}`);
+  console.log(`🎯 OTLP Endpoint: ${TELEMETRY_CONFIG.otlpEndpoint}`);
+  console.log(`⏱️  Export Interval: ${TELEMETRY_CONFIG.exportInterval}ms`);
+  
+  return sdk;
+};
+
+// Graceful shutdown
+export const shutdownTelemetry = async (sdk: NodeSDK | null) => {
+  if (!sdk) return;
+  
+  try {
+    await sdk.shutdown();
+    console.log('📊 OpenTelemetry terminated');
+  } catch (error) {
+    console.error('Error terminating OpenTelemetry SDK', error);
+  }
+};
+```
+
+### 3. Update Your Server Entry Point
+
+Modify your main server file (e.g., `server.ts` or `index.ts`):
+
+```typescript
+// ⚠️ IMPORTANT: Initialize telemetry BEFORE importing your app
+import { initTelemetry, shutdownTelemetry } from './config/telemetry';
+
+import dotenv from 'dotenv';
+import { app } from './app'; // Your Express app
+
+dotenv.config();
+
+// Initialize OpenTelemetry
+const sdk = initTelemetry();
+
+const PORT = process.env.PORT || 3000;
+
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  if (sdk) {
+    console.log(`📊 Observability enabled`);
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received');
+  server.close(() => {
+    shutdownTelemetry(sdk);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received');
+  server.close(() => {
+    shutdownTelemetry(sdk);
+  });
+});
+```
+
+### 4. Add Environment Variables
+
+Create or update your `.env` file:
+
 ```bash
-# Start PostgreSQL (example with Docker)
-docker run --name postgres-metrics \
-  -e POSTGRES_USER=user \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=metrics_demo \
-  -p 5432:5432 \
-  -d postgres:15
-
-# Update .env with your database URL
-# DATABASE_URL="postgresql://user:password@localhost:5432/metrics_demo?schema=public"
+# Telemetry Configuration
+TELEMETRY_ENABLED=true
+SERVICE_NAME=my-express-app
+SERVICE_VERSION=1.0.0
+OTLP_ENDPOINT=http://localhost:4318
+METRIC_EXPORT_INTERVAL=10000
+NODE_ENV=development
 ```
 
-### 3. Initialize Prisma
+### 5. Optional: Add Request Logging Middleware
+
+Add to your `app.ts` for enhanced visibility:
+
+```typescript
+// Simple request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+```
+
+## 🐳 Setup Observability Stack
+
+### Option 1: Use RAVN Observability Stack (Recommended)
+
 ```bash
-npx prisma generate
-npx prisma migrate dev --name init_tasks
+# Clone the observability stack
+git clone https://github.com/ravnhq/observability-stack.git
+cd observability-stack/src
+
+# Start all services (Grafana, Loki, Mimir, Tempo)
+docker-compose up -d
+
+# Access Grafana at http://localhost:3030
+# Login: admin/admin
 ```
 
-### 4. Start Development Server
+### Option 2: Manual Docker Compose
+
+Create `docker-compose.observability.yml`:
+
+```yaml
+version: "3.9"
+services:
+  grafana-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "3030:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "3100:3100"   # Loki
+      - "9090:9090"   # Prometheus/Mimir
+      - "9411:9411"   # Tempo
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+```
+
 ```bash
-npm run dev
+docker-compose -f docker-compose.observability.yml up -d
 ```
 
-## 📁 Project Structure
+## 📊 View Your Metrics
 
-```
-minimal-metrics-api/
-├─ prisma/
-│  └─ schema.prisma          # Database schema
-├─ src/
-│  ├─ config/
-│  │  └─ db.ts              # Prisma client
-│  ├─ tasks/
-│  │  ├─ task.types.ts      # Core interfaces/types
-│  │  ├─ task.dto.ts        # Data Transfer Objects
-│  │  ├─ task.service.ts    # Business logic
-│  │  ├─ task.controller.ts # Express handlers
-│  │  └─ task.routes.ts     # Route definitions
-│  ├─ app.ts                # Express app setup
-│  └─ server.ts             # Server entrypoint
-├─ .env                     # Environment variables
-├─ package.json
-├─ tsconfig.json
-└─ .gitignore
+### 1. Access Grafana
+- URL: **http://localhost:3030**
+- Login: **admin/admin**
+
+### 2. Explore Data
+Go to **Explore** and try these queries:
+
+**HTTP Request Rate:**
+```promql
+rate(http_server_duration_seconds_count[5m])
 ```
 
-## 📡 API Endpoints
+**HTTP Request Duration (95th percentile):**
+```promql
+histogram_quantile(0.95, rate(http_server_duration_seconds_bucket[5m]))
+```
 
-| Method | Endpoint | Description | Example |
-|--------|----------|-------------|---------|
-| `GET` | `/health` | Health check | `200 { "status": "ok" }` |
-| `GET` | `/tasks` | List all tasks | Returns array of tasks |
-| `GET` | `/tasks/:id` | Get task by ID | Returns single task |
-| `POST` | `/tasks` | Create new task | See [Create Task](#create-task) |
-| `PUT` | `/tasks/:id` | Update task | See [Update Task](#update-task) |
-| `DELETE` | `/tasks/:id` | Delete task | `204 No Content` |
+**Error Rate:**
+```promql
+rate(http_server_duration_seconds_count{status_code=~"5.."}[5m])
+```
 
-### Create Task
+### 3. Create Dashboard
+1. Go to **Dashboards** → **New Dashboard**
+2. Add panels with the queries above
+3. Save your dashboard
+
+## 🔧 Advanced Configuration
+
+### Custom Business Metrics
+
+```typescript
+import { metrics } from '@opentelemetry/api';
+
+// Create a meter
+const meter = metrics.getMeter('my-app-business-metrics');
+
+// Counter for user signups
+const signupCounter = meter.createCounter('user_signups_total');
+
+// Histogram for order values
+const orderValueHistogram = meter.createHistogram('order_value_dollars');
+
+// Usage in your business logic
+app.post('/api/users', (req, res) => {
+  // Your user creation logic...
+  
+  signupCounter.add(1, { source: 'web' });
+  res.json(user);
+});
+
+app.post('/api/orders', (req, res) => {
+  // Your order creation logic...
+  
+  orderValueHistogram.record(order.total, { 
+    payment_method: order.paymentMethod 
+  });
+  res.json(order);
+});
+```
+
+### Database Instrumentation
+
+For automatic database tracing, install specific instrumentations:
+
 ```bash
-POST /tasks
-Content-Type: application/json
+# PostgreSQL
+npm install @opentelemetry/instrumentation-pg
 
-{
-  "name": "Implement metrics",
-  "description": "Add tracing and logs",
-  "date": "2025-11-21T12:00:00.000Z",
-  "status": "PENDING"
-}
+# MySQL
+npm install @opentelemetry/instrumentation-mysql
+
+# MongoDB
+npm install @opentelemetry/instrumentation-mongodb
+
+# Prisma (experimental)
+npm install @prisma/instrumentation
 ```
 
-### Update Task
+Add to your telemetry config:
+
+```typescript
+instrumentations: [
+  getNodeAutoInstrumentations({
+    '@opentelemetry/instrumentation-http': { enabled: true },
+    '@opentelemetry/instrumentation-express': { enabled: true },
+    '@opentelemetry/instrumentation-pg': { enabled: true },
+    // ... other instrumentations
+  }),
+],
+```
+
+## 🚀 Production Considerations
+
+### Environment-Specific Configuration
+
 ```bash
-PUT /tasks/1
-Content-Type: application/json
+# Development
+TELEMETRY_ENABLED=true
+OTLP_ENDPOINT=http://localhost:4318
+METRIC_EXPORT_INTERVAL=5000
 
-{
-  "name": "Updated task name",
-  "status": "IN_PROGRESS"
-}
+# Staging
+TELEMETRY_ENABLED=true
+OTLP_ENDPOINT=https://staging-observability.company.com
+METRIC_EXPORT_INTERVAL=30000
+
+# Production
+TELEMETRY_ENABLED=true
+OTLP_ENDPOINT=https://observability.company.com
+METRIC_EXPORT_INTERVAL=60000
 ```
 
-## 🗄️ Database Schema
+### Performance Optimization
 
-### Task Model
-```prisma
-model Task {
-  id          Int        @id @default(autoincrement())
-  name        String     // Task name
-  description String?    // Optional description
-  date        DateTime   // Due date or task date
-  status      TaskStatus @default(PENDING)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-}
-
-enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
-}
+```typescript
+// Sampling for high-traffic applications
+instrumentations: [
+  getNodeAutoInstrumentations({
+    '@opentelemetry/instrumentation-http': { 
+      enabled: true,
+      requestHook: (span, request) => {
+        // Add custom attributes
+        span.setAttributes({
+          'http.user_agent': request.headers['user-agent'],
+        });
+      },
+    },
+  }),
+],
 ```
 
-## 🛠️ Available Scripts
+## 🔍 Troubleshooting
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server with hot reload |
-| `npm run build` | Build TypeScript to JavaScript |
-| `npm start` | Start production server |
-| `npm run prisma:generate` | Generate Prisma client |
-| `npm run prisma:migrate` | Run database migrations |
+### Check if Telemetry is Working
 
-## 🔧 Configuration
-
-### Environment Variables (.env)
 ```bash
-DATABASE_URL="postgresql://user:password@localhost:5432/metrics_demo?schema=public"
-PORT=3000
+# Test OTLP endpoint
+curl -v http://localhost:4318/v1/metrics
+
+# Check Prometheus metrics
+curl http://localhost:9090/api/v1/label/__name__/values
+
+# View container logs
+docker logs grafana-lgtm
 ```
 
-### TypeScript Configuration
-- **Target**: ES2020
-- **Module**: CommonJS
-- **Strict mode**: Enabled
-- **Output**: `./dist`
+### Common Issues
 
-## 📊 Data Flow
+1. **No metrics appearing**: Check `OTLP_ENDPOINT` and ensure observability stack is running
+2. **High CPU usage**: Increase `METRIC_EXPORT_INTERVAL` or add sampling
+3. **Memory leaks**: Ensure proper SDK shutdown in process handlers
 
-1. **Request** → **Routes** → **Controller** → **Service** → **Database**
-2. **Database** → **Service** → **Controller** → **Response**
+## 📚 Next Steps
 
-### Architecture Layers
-
-- **Routes**: Express route definitions and middleware
-- **Controllers**: Thin HTTP handlers, validation, response formatting
-- **Services**: Business logic, data transformation, database interactions
-- **DTOs**: Data Transfer Objects for API contracts
-- **Types**: Core domain interfaces and types
-
-## 🔗 Ready for Observability
-
-This minimal setup is designed to be easily extended with:
-
-- **OpenTelemetry** instrumentation
-- **Grafana** dashboards
-- **Tempo** distributed tracing
-- **Loki** log aggregation
-- **Mimir** metrics collection
-
-The clean architecture makes it simple to add observability hooks at each layer:
-- HTTP middleware for request/response metrics
-- Service layer for business metrics
-- Database layer for query performance
-- Error handling for failure tracking
-
-## 🚀 Next Steps
-
-1. **Add OpenTelemetry**: Instrument the Express app for tracing
-2. **Add Metrics**: Custom business metrics and Prometheus endpoints
-3. **Add Logging**: Structured logging with correlation IDs
-4. **Add Validation**: Runtime validation with Zod or class-validator
-5. **Add Tests**: Unit and integration tests
+1. **Custom Dashboards**: Create specific dashboards for your business metrics
+2. **Alerting**: Set up alerts for error rates and performance degradation
+3. **Log Correlation**: Add structured logging with trace correlation
+4. **Multi-Service**: Extend to microservices with distributed tracing
 
 ---
 
-**Perfect foundation for production-ready metrics collection! 🎯**
+**🎉 Your Express.js app is now fully observable! Monitor, debug, and optimize with confidence.**

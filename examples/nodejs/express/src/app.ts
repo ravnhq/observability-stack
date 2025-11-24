@@ -5,6 +5,16 @@ import { taskRoutes } from './tasks/task.routes';
 
 const app = express();
 
+// Simple request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
 
