@@ -1,7 +1,6 @@
 // src/server.ts
 // Initialize telemetry BEFORE importing app
 import { initTelemetry, shutdownTelemetry } from './config/telemetry';
-
 import dotenv from 'dotenv';
 import { app } from './app';
 

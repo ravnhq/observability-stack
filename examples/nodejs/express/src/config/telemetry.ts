@@ -3,6 +3,8 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { PrismaInstrumentation } from '@prisma/instrumentation';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 
 // Environment configuration
 const TELEMETRY_CONFIG = {
@@ -38,6 +40,8 @@ export const initTelemetry = () => {
         '@opentelemetry/instrumentation-fs': { enabled: false },
         '@opentelemetry/instrumentation-dns': { enabled: false },
       }),
+      new PrismaInstrumentation(),
+      new PgInstrumentation(),
     ],
   });
 
