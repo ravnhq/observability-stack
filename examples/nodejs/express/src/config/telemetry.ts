@@ -1,65 +1,93 @@
+// src/telemetry.ts
+import dotenv from 'dotenv';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import { PrismaInstrumentation } from '@prisma/instrumentation';
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 
-// Environment configuration
-const TELEMETRY_CONFIG = {
-  enabled: process.env.TELEMETRY_ENABLED !== 'false',
-  serviceName: process.env.SERVICE_NAME || 'minimal-metrics-api',
-  serviceVersion: process.env.SERVICE_VERSION || '1.0.0',
-  otlpEndpoint: process.env.OTLP_ENDPOINT || 'http://localhost:4318',
-  exportInterval: parseInt(process.env.METRIC_EXPORT_INTERVAL || '10000'),
-  environment: process.env.NODE_ENV || 'development',
-};
+// ========== LOAD ENV FIRST ==========
+dotenv.config();
+console.log('🔧 Debug: After dotenv.config()...');
+console.log('🔧 process.env.TELEMETRY_ENABLED:', process.env.TELEMETRY_ENABLED);
+console.log('🔧 process.env.SERVICE_NAME:', process.env.SERVICE_NAME);
+console.log('🔧 process.env.OTLP_ENDPOINT:', process.env.OTLP_ENDPOINT);
 
-// Initialize OpenTelemetry SDK
-export const initTelemetry = () => {
-  if (!TELEMETRY_CONFIG.enabled) {
-    console.log('📊 Telemetry disabled via TELEMETRY_ENABLED=false');
-    return null;
+const TELEMETRY_ENABLED = process.env.TELEMETRY_ENABLED !== 'false';
+const SERVICE_NAME = process.env.SERVICE_NAME || 'minimal-metrics-api';
+const SERVICE_VERSION = process.env.SERVICE_VERSION || '1.0.0';
+const OTLP_ENDPOINT = process.env.OTLP_ENDPOINT || 'http://localhost:4318';
+const METRIC_EXPORT_INTERVAL = Number(process.env.METRIC_EXPORT_INTERVAL) || 5000;
+
+// Opcional: log para debugging
+console.log(`[Telemetry] Enabled: ${TELEMETRY_ENABLED}`);
+console.log(`[Telemetry] Endpoint: ${OTLP_ENDPOINT}`);
+console.log(`[Telemetry] Service: ${SERVICE_NAME} v${SERVICE_VERSION}`);
+
+let sdk: NodeSDK | null = null;
+
+export async function startTelemetry() {
+  if (!TELEMETRY_ENABLED) {
+    console.log('⚠️  Telemetry is disabled. Skipping OpenTelemetry initialization.');
+    return;
   }
 
-  const sdk = new NodeSDK({
-    traceExporter: new OTLPTraceExporter({
-      url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/traces`,
-    }),
-    metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/metrics`,
-      }),
-      exportIntervalMillis: TELEMETRY_CONFIG.exportInterval,
-    }),
+  const resource = defaultResource().merge(
+      resourceFromAttributes({
+        'service.name': SERVICE_NAME,
+        'service.version': SERVICE_VERSION,
+        'deployment.environment': process.env.NODE_ENV || 'development',
+      })
+    );
+
+  const traceExporter = new OTLPTraceExporter({
+    url: `${OTLP_ENDPOINT}/v1/traces`,
+  });
+
+  const metricExporter = new OTLPMetricExporter({
+    url: `${OTLP_ENDPOINT}/v1/metrics`,
+  });
+
+  const metricReader = new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: METRIC_EXPORT_INTERVAL,
+  });
+
+  sdk = new NodeSDK({
+    resource,
+    traceExporter,
+    metricReader,
     instrumentations: [
+      new PrismaInstrumentation(),
       getNodeAutoInstrumentations({
-        '@opentelemetry/instrumentation-http': { enabled: true },
-        '@opentelemetry/instrumentation-express': { enabled: true },
         '@opentelemetry/instrumentation-fs': { enabled: false },
         '@opentelemetry/instrumentation-dns': { enabled: false },
+        '@opentelemetry/instrumentation-net': { enabled: false },
+        '@opentelemetry/instrumentation-express': { enabled: true },
+        '@opentelemetry/instrumentation-http': { enabled: true },
       }),
-      new PrismaInstrumentation(),
-      new PgInstrumentation(),
     ],
   });
 
   sdk.start();
-  
-  console.log(`📊 OpenTelemetry initialized for ${TELEMETRY_CONFIG.serviceName}`);
-  console.log(`🎯 OTLP Endpoint: ${TELEMETRY_CONFIG.otlpEndpoint}`);
-  console.log(`⏱️  Export Interval: ${TELEMETRY_CONFIG.exportInterval}ms`);
-  
-  return sdk;
-};
+  console.log('✅ OpenTelemetry initialized successfully');
+  console.log(`🎯 Service Name: ${SERVICE_NAME}`);
+  console.log(`📡 OTLP Traces: ${OTLP_ENDPOINT}/v1/traces`);
+  console.log(`📊 OTLP Metrics: ${OTLP_ENDPOINT}/v1/metrics`);
+}
 
-// Graceful shutdown
-export const shutdownTelemetry = async (sdk: NodeSDK) => {
+export async function shutdownTelemetry() {
+  if (!TELEMETRY_ENABLED || !sdk) return;
   try {
     await sdk.shutdown();
-    console.log('📊 OpenTelemetry terminated');
+    console.log('🧹 OpenTelemetry shutdown completed');
   } catch (error) {
-    console.error('Error terminating OpenTelemetry SDK', error);
+    console.error('Error shutting down telemetry:', error);
   }
-};
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => shutdownTelemetry().finally(() => process.exit(0)));
+process.on('SIGINT', () => shutdownTelemetry().finally(() => process.exit(0)));

@@ -1,11 +1,9 @@
-// src/app.ts
 import express from 'express';
 import cors from 'cors';
 import { taskRoutes } from './tasks/task.routes';
 
 const app = express();
 
-// Simple request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   res.on('finish', () => {

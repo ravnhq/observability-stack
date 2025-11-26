@@ -1,34 +1,31 @@
 // src/server.ts
-// Initialize telemetry BEFORE importing app
-import { initTelemetry, shutdownTelemetry } from './config/telemetry';
-import dotenv from 'dotenv';
+// IMPORTANT: Initialize telemetry BEFORE importing the app
+import { startTelemetry, shutdownTelemetry } from './config/telemetry';
+
+// Start telemetry first
+startTelemetry();
+
 import { app } from './app';
 
-dotenv.config();
-
-// Initialize OpenTelemetry
-const sdk = initTelemetry();
-
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 API listening on port ${PORT}`);
-  if (sdk) {
-    console.log(`📊 Observability enabled`);
-  }
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔗 API available at: http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received');
+  console.log('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    if (sdk) shutdownTelemetry(sdk);
+    shutdownTelemetry().finally(() => process.exit(0));
   });
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received');
+  console.log('SIGINT received, shutting down gracefully');
   server.close(() => {
-    if (sdk) shutdownTelemetry(sdk);
+    shutdownTelemetry().finally(() => process.exit(0));
   });
 });
