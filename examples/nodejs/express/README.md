@@ -1,18 +1,10 @@
-# Express.js Observability Implementation Guide
+# Express.js OpenTelemetry Integration
 
-A complete guide to add **OpenTelemetry** observability (metrics, traces, logs) to any Express.js project for integration with **Grafana**, **Tempo**, **Loki**, and **Mimir**.
+Simple steps to add complete observability (metrics, traces, logs, profiling) to your Express.js application.
 
-## 🎯 What You'll Get
+## 🚀 Quick Setup (5 minutes)
 
-- **Automatic HTTP instrumentation** (request duration, status codes, paths)
-- **Distributed tracing** across services
-- **Custom metrics** for business logic
-- **Structured logging** with correlation
-- **Ready for Grafana dashboards**
-
-## 🚀 Step-by-Step Implementation
-
-### 1. Install OpenTelemetry Dependencies
+### 1. Install Dependencies
 
 ```bash
 npm install @opentelemetry/sdk-node \
@@ -20,124 +12,273 @@ npm install @opentelemetry/sdk-node \
             @opentelemetry/exporter-trace-otlp-http \
             @opentelemetry/exporter-metrics-otlp-http \
             @opentelemetry/sdk-metrics \
-            @opentelemetry/api \
+            @opentelemetry/resources \
+            @opentelemetry/instrumentation-pg \
+            @opentelemetry/instrumentation-winston \
+            @prisma/instrumentation \
+            winston \
+            winston-loki \
+            @pyroscope/nodejs \
             dotenv
 ```
 
-### 2. Create Telemetry Configuration
-
-Create `src/config/telemetry.ts`:
+### 2. Create `src/config/telemetry.ts`
 
 ```typescript
+import dotenv from 'dotenv';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
+import { PrismaInstrumentation } from '@prisma/instrumentation';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
+import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 
-// Environment configuration
-const TELEMETRY_CONFIG = {
-  enabled: process.env.TELEMETRY_ENABLED !== 'false',
-  serviceName: process.env.SERVICE_NAME || 'my-express-app',
-  serviceVersion: process.env.SERVICE_VERSION || '1.0.0',
-  otlpEndpoint: process.env.OTLP_ENDPOINT || 'http://localhost:4318',
-  exportInterval: parseInt(process.env.METRIC_EXPORT_INTERVAL || '10000'),
-  environment: process.env.NODE_ENV || 'development',
-};
+// Pyroscope profiling
+import Pyroscope from '@pyroscope/nodejs';
 
-// Initialize OpenTelemetry SDK
-export const initTelemetry = () => {
-  if (!TELEMETRY_CONFIG.enabled) {
-    console.log('📊 Telemetry disabled via TELEMETRY_ENABLED=false');
-    return null;
+// Load environment variables
+dotenv.config();
+
+const TELEMETRY_ENABLED = process.env.TELEMETRY_ENABLED !== 'false';
+const SERVICE_NAME = process.env.SERVICE_NAME || 'my-express-app';
+const SERVICE_VERSION = process.env.SERVICE_VERSION || '1.0.0';
+const OTLP_ENDPOINT = process.env.OTLP_ENDPOINT || 'http://localhost:4318';
+const PYROSCOPE_ENDPOINT = process.env.PYROSCOPE_ENDPOINT || 'http://localhost:4040';
+const METRIC_EXPORT_INTERVAL = Number(process.env.METRIC_EXPORT_INTERVAL) || 5000;
+
+let sdk: NodeSDK | null = null;
+
+export async function startTelemetry() {
+  if (!TELEMETRY_ENABLED) {
+    console.log('⚠️ Telemetry disabled');
+    return;
   }
 
-  const sdk = new NodeSDK({
-    traceExporter: new OTLPTraceExporter({
-      url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/traces`,
-    }),
-    metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: `${TELEMETRY_CONFIG.otlpEndpoint}/v1/metrics`,
-      }),
-      exportIntervalMillis: TELEMETRY_CONFIG.exportInterval,
-    }),
+  // Initialize Pyroscope profiling
+  if (process.env.PYROSCOPE_ENABLED !== 'false') {
+    Pyroscope.init({
+      serverAddress: PYROSCOPE_ENDPOINT,
+      appName: SERVICE_NAME,
+      tags: {
+        version: SERVICE_VERSION,
+        environment: process.env.NODE_ENV || 'development',
+      }
+    });
+    console.log('🔥 Pyroscope profiling enabled');
+  }
+
+  const resource = defaultResource().merge(
+    resourceFromAttributes({
+      'service.name': SERVICE_NAME,
+      'service.version': SERVICE_VERSION,
+      'deployment.environment': process.env.NODE_ENV || 'development',
+    })
+  );
+
+  const traceExporter = new OTLPTraceExporter({
+    url: `${OTLP_ENDPOINT}/v1/traces`,
+  });
+
+  const metricExporter = new OTLPMetricExporter({
+    url: `${OTLP_ENDPOINT}/v1/metrics`,
+  });
+
+  const metricReader = new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: METRIC_EXPORT_INTERVAL,
+  });
+
+  sdk = new NodeSDK({
+    resource,
+    traceExporter,
+    metricReader,
     instrumentations: [
+      // Database instrumentation
+      new PrismaInstrumentation(),
+      new PgInstrumentation({
+        enhancedDatabaseReporting: true,
+      }),
+      
+      // Logging instrumentation (for Loki)
+      new WinstonInstrumentation(),
+      
+      // HTTP instrumentation
       getNodeAutoInstrumentations({
-        '@opentelemetry/instrumentation-http': { enabled: true },
-        '@opentelemetry/instrumentation-express': { enabled: true },
         '@opentelemetry/instrumentation-fs': { enabled: false },
         '@opentelemetry/instrumentation-dns': { enabled: false },
+        '@opentelemetry/instrumentation-express': { enabled: true },
+        '@opentelemetry/instrumentation-http': { enabled: true },
+        '@opentelemetry/instrumentation-winston': { enabled: true },
       }),
     ],
   });
 
-  sdk.start();
-  
-  console.log(`📊 OpenTelemetry initialized for ${TELEMETRY_CONFIG.serviceName}`);
-  console.log(`🎯 OTLP Endpoint: ${TELEMETRY_CONFIG.otlpEndpoint}`);
-  console.log(`⏱️  Export Interval: ${TELEMETRY_CONFIG.exportInterval}ms`);
-  
-  return sdk;
-};
+  await sdk.start();
+  console.log('✅ OpenTelemetry initialized');
+  console.log(`📊 Metrics: ${OTLP_ENDPOINT}/v1/metrics`);
+  console.log(`🔍 Traces: ${OTLP_ENDPOINT}/v1/traces`);
+}
 
-// Graceful shutdown
-export const shutdownTelemetry = async (sdk: NodeSDK | null) => {
+export async function shutdownTelemetry() {
   if (!sdk) return;
-  
   try {
     await sdk.shutdown();
-    console.log('📊 OpenTelemetry terminated');
+    console.log('🧹 Telemetry shutdown');
   } catch (error) {
-    console.error('Error terminating OpenTelemetry SDK', error);
+    console.error('Telemetry shutdown error:', error);
   }
-};
+}
 ```
 
-### 3. Update Your Server Entry Point
-
-Modify your main server file (e.g., `server.ts` or `index.ts`):
+### 3. Create `src/config/logger.ts`
 
 ```typescript
-// ⚠️ IMPORTANT: Initialize telemetry BEFORE importing your app
-import { initTelemetry, shutdownTelemetry } from './config/telemetry';
+import winston from 'winston';
+import LokiTransport from 'winston-loki';
 
-import dotenv from 'dotenv';
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { 
+    service: process.env.SERVICE_NAME || 'my-express-app',
+    version: process.env.SERVICE_VERSION || '1.0.0'
+  },
+  transports: [
+    // Console transport for development
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    }),
+    
+    // File transport (backup)
+    new winston.transports.File({ 
+      filename: 'logs/app.log',
+      format: winston.format.json()
+    }),
+
+    // Loki transport - sends logs directly to Loki
+    new LokiTransport({
+      host: process.env.LOKI_URL || 'http://localhost:3100',
+      labels: {
+        service: process.env.SERVICE_NAME || 'my-express-app',
+        environment: process.env.NODE_ENV || 'development',
+        version: process.env.SERVICE_VERSION || '1.0.0'
+      },
+      json: true,
+      format: winston.format.json(),
+      replaceTimestamp: true,
+      onConnectionError: (err) => {
+        console.error('Winston Loki connection error:', err);
+      }
+    })
+  ],
+});
+
+export { logger };
+```
+
+### 4. Update your `server.ts`
+
+```typescript
+// IMPORTANT: Import telemetry FIRST, before your app
+import { startTelemetry, shutdownTelemetry } from './config/telemetry';
+
+// Start telemetry before importing app
+startTelemetry();
+
 import { app } from './app'; // Your Express app
 
-dotenv.config();
-
-// Initialize OpenTelemetry
-const sdk = initTelemetry();
-
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  if (sdk) {
-    console.log(`📊 Observability enabled`);
-  }
+  console.log(`🔗 Health: http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', () => {
   console.log('SIGTERM received');
   server.close(() => {
-    shutdownTelemetry(sdk);
+    shutdownTelemetry().finally(() => process.exit(0));
   });
 });
 
-process.on('SIGINT', async () => {
+process.on('SIGINT', () => {
   console.log('SIGINT received');
   server.close(() => {
-    shutdownTelemetry(sdk);
+    shutdownTelemetry().finally(() => process.exit(0));
   });
 });
 ```
 
-### 4. Add Environment Variables
+### 5. Update your `app.ts` with structured logging
 
-Create or update your `.env` file:
+```typescript
+import express from 'express';
+import cors from 'cors';
+import { logger } from './config/logger';
+
+const app = express();
+
+// Structured logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    logger.info('HTTP Request', {
+      method: req.method,
+      url: req.url,
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip || req.connection.remoteAddress
+    });
+  });
+  
+  next();
+});
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/health', (_req, res) => {
+  logger.info('Health check requested');
+  res.json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: process.env.SERVICE_NAME || 'my-express-app'
+  });
+});
+
+// Your routes here...
+
+// Error logging
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error', {
+    error: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.url
+  });
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+export { app };
+```
+
+### 6. Add Environment Variables
+
+Create/update `.env`:
 
 ```bash
 # Telemetry Configuration
@@ -145,228 +286,96 @@ TELEMETRY_ENABLED=true
 SERVICE_NAME=my-express-app
 SERVICE_VERSION=1.0.0
 OTLP_ENDPOINT=http://localhost:4318
-METRIC_EXPORT_INTERVAL=10000
+METRIC_EXPORT_INTERVAL=5000
 NODE_ENV=development
+
+# Loki Configuration
+LOG_LEVEL=info
+LOKI_URL=http://localhost:3100
+
+# Pyroscope Configuration
+PYROSCOPE_ENABLED=true
+PYROSCOPE_ENDPOINT=http://localhost:4040
+
+# Application
+PORT=3001
 ```
 
-### 5. Optional: Add Request Logging Middleware
-
-Add to your `app.ts` for enhanced visibility:
-
-```typescript
-// Simple request logging middleware
-app.use((req, res, next) => {
-  const startTime = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
-  });
-  next();
-});
-```
-
-## 🐳 Setup Observability Stack
-
-### Option 1: Use RAVN Observability Stack (Recommended)
+### 7. Create logs directory
 
 ```bash
-# Clone the observability stack
+mkdir -p logs
+```
+
+### 8. Start Observability Stack
+
+```bash
+# Clone and start LGTM stack
 git clone https://github.com/ravnhq/observability-stack.git
 cd observability-stack/src
-
-# Start all services (Grafana, Loki, Mimir, Tempo)
 docker-compose up -d
 
-# Access Grafana at http://localhost:3030
-# Login: admin/admin
+# Access Grafana at http://localhost:3030 (admin/admin)
 ```
 
-### Option 2: Manual Docker Compose
+## 📊 View Your Data
 
-Create `docker-compose.observability.yml`:
+### Grafana (http://localhost:3030)
 
-```yaml
-version: "3.9"
-services:
-  grafana-lgtm:
-    image: grafana/otel-lgtm:latest
-    ports:
-      - "3030:3000"   # Grafana UI
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "3100:3100"   # Loki
-      - "9090:9090"   # Prometheus/Mimir
-      - "9411:9411"   # Tempo
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-```
+**Traces (Tempo):**
+- Go to Explore → Tempo
+- Search for service: `my-express-app`
+- See HTTP requests and database queries with trace correlation
 
-```bash
-docker-compose -f docker-compose.observability.yml up -d
-```
+**Metrics (Prometheus):**
+- Go to Explore → Prometheus
+- Try these queries:
 
-## 📊 View Your Metrics
-
-### 1. Access Grafana
-- URL: **http://localhost:3030**
-- Login: **admin/admin**
-
-### 2. Explore Data
-Go to **Explore** and try these queries:
-
-**HTTP Request Rate:**
 ```promql
-rate(http_server_duration_seconds_count[5m])
+# HTTP request rate
+rate(http_server_duration_seconds_count{service_name="my-express-app"}[5m])
+
+# HTTP request duration (95th percentile)
+histogram_quantile(0.95, rate(http_server_duration_seconds_bucket{service_name="my-express-app"}[5m]))
+
+# Error rate
+rate(http_server_duration_seconds_count{service_name="my-express-app",status_code=~"5.."}[5m])
 ```
 
-**HTTP Request Duration (95th percentile):**
-```promql
-histogram_quantile(0.95, rate(http_server_duration_seconds_bucket[5m]))
+**Logs (Loki):**
+- Go to Explore → Loki
+- Try these queries:
+
+```logql
+# All logs for your service
+{service="my-express-app"}
+
+# Error logs only
+{service="my-express-app"} |= "ERROR"
+
+# HTTP requests with status 500
+{service="my-express-app"} | json | statusCode="500"
+
+# Slow requests (>1000ms)
+{service="my-express-app"} | json | duration > "1000ms"
+
+# Logs with trace correlation
+{service="my-express-app"} | json | trace_id != ""
 ```
 
-**Error Rate:**
-```promql
-rate(http_server_duration_seconds_count{status_code=~"5.."}[5m])
-```
+**Profiling (Pyroscope):**
+- Go to Explore → Pyroscope
+- Select service: `my-express-app`
+- View CPU profiles, memory usage, flame graphs
 
-### 3. Create Dashboard
-1. Go to **Dashboards** → **New Dashboard**
-2. Add panels with the queries above
-3. Save your dashboard
+## 🎯 That's It!
 
-## 🔧 Advanced Configuration
+Your Express app now automatically captures:
+- ✅ **HTTP request metrics** (duration, status codes, paths)
+- ✅ **Distributed traces** across your application with correlation IDs
+- ✅ **Database query traces** (if using Prisma/PostgreSQL)
+- ✅ **Structured logs** sent directly to Loki with trace correlation
+- ✅ **CPU/Memory profiling** with Pyroscope
+- ✅ **All data unified** in Grafana for visualization and correlation
 
-### Custom Business Metrics
-
-```typescript
-import { metrics } from '@opentelemetry/api';
-
-// Create a meter
-const meter = metrics.getMeter('my-app-business-metrics');
-
-// Counter for user signups
-const signupCounter = meter.createCounter('user_signups_total');
-
-// Histogram for order values
-const orderValueHistogram = meter.createHistogram('order_value_dollars');
-
-// Usage in your business logic
-app.post('/api/users', (req, res) => {
-  // Your user creation logic...
-  
-  signupCounter.add(1, { source: 'web' });
-  res.json(user);
-});
-
-app.post('/api/orders', (req, res) => {
-  // Your order creation logic...
-  
-  orderValueHistogram.record(order.total, { 
-    payment_method: order.paymentMethod 
-  });
-  res.json(order);
-});
-```
-
-### Database Instrumentation
-
-For automatic database tracing, install specific instrumentations:
-
-```bash
-# PostgreSQL
-npm install @opentelemetry/instrumentation-pg
-
-# MySQL
-npm install @opentelemetry/instrumentation-mysql
-
-# MongoDB
-npm install @opentelemetry/instrumentation-mongodb
-
-# Prisma (experimental)
-npm install @prisma/instrumentation
-```
-
-Add to your telemetry config:
-
-```typescript
-instrumentations: [
-  getNodeAutoInstrumentations({
-    '@opentelemetry/instrumentation-http': { enabled: true },
-    '@opentelemetry/instrumentation-express': { enabled: true },
-    '@opentelemetry/instrumentation-pg': { enabled: true },
-    // ... other instrumentations
-  }),
-],
-```
-
-## 🚀 Production Considerations
-
-### Environment-Specific Configuration
-
-```bash
-# Development
-TELEMETRY_ENABLED=true
-OTLP_ENDPOINT=http://localhost:4318
-METRIC_EXPORT_INTERVAL=5000
-
-# Staging
-TELEMETRY_ENABLED=true
-OTLP_ENDPOINT=https://staging-observability.company.com
-METRIC_EXPORT_INTERVAL=30000
-
-# Production
-TELEMETRY_ENABLED=true
-OTLP_ENDPOINT=https://observability.company.com
-METRIC_EXPORT_INTERVAL=60000
-```
-
-### Performance Optimization
-
-```typescript
-// Sampling for high-traffic applications
-instrumentations: [
-  getNodeAutoInstrumentations({
-    '@opentelemetry/instrumentation-http': { 
-      enabled: true,
-      requestHook: (span, request) => {
-        // Add custom attributes
-        span.setAttributes({
-          'http.user_agent': request.headers['user-agent'],
-        });
-      },
-    },
-  }),
-],
-```
-
-## 🔍 Troubleshooting
-
-### Check if Telemetry is Working
-
-```bash
-# Test OTLP endpoint
-curl -v http://localhost:4318/v1/metrics
-
-# Check Prometheus metrics
-curl http://localhost:9090/api/v1/label/__name__/values
-
-# View container logs
-docker logs grafana-lgtm
-```
-
-### Common Issues
-
-1. **No metrics appearing**: Check `OTLP_ENDPOINT` and ensure observability stack is running
-2. **High CPU usage**: Increase `METRIC_EXPORT_INTERVAL` or add sampling
-3. **Memory leaks**: Ensure proper SDK shutdown in process handlers
-
-## 📚 Next Steps
-
-1. **Custom Dashboards**: Create specific dashboards for your business metrics
-2. **Alerting**: Set up alerts for error rates and performance degradation
-3. **Log Correlation**: Add structured logging with trace correlation
-4. **Multi-Service**: Extend to microservices with distributed tracing
-
----
-
-**🎉 Your Express.js app is now fully observable! Monitor, debug, and optimize with confidence.**
+**Test it:** Make some API calls and check Grafana in 10-15 seconds!
