@@ -53,7 +53,7 @@ const sdk = new NodeSDK({
   traceExporter,
   metricReader: new PeriodicExportingMetricReader({
     exporter: metricExporter,
-    exportIntervalMillis: 10000, // Export metrics every 10 seconds
+    exportIntervalMillis: 5000, // Export metrics every 5 seconds
   }),
   logRecordProcessor: new BatchLogRecordProcessor(logExporter),
   instrumentations: [
@@ -61,8 +61,10 @@ const sdk = new NodeSDK({
     getNodeAutoInstrumentations({
       '@opentelemetry/instrumentation-fs': { enabled: false },
       '@opentelemetry/instrumentation-http': {
+        enabled: true,
         ignoreIncomingRequestHook: (request) => {
-          const ignorePaths = ['/health', '/_next', '/favicon.ico'];
+          // Only ignore static assets, allow all API routes
+          const ignorePaths = ['/_next/static', '/_next/image', '/favicon.ico', '/__nextjs'];
           return ignorePaths.some((path) => request.url?.includes(path));
         },
       },
@@ -71,9 +73,24 @@ const sdk = new NodeSDK({
 });
 
 export async function register() {
-  // This function is called by Next.js when the instrumentationHook is enabled
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
+  console.log('🔍 Register function called');
+  console.log('🔍 NEXT_RUNTIME:', process.env.NEXT_RUNTIME);
+  console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('🔍 OTEL_COLLECTOR_URL:', OTEL_COLLECTOR_URL);
+  
+  // Start SDK regardless of runtime for Next.js
+  try {
     await sdk.start();
-    console.log('OpenTelemetry instrumentation started for Next.js');
+    console.log('✅ OpenTelemetry SDK started successfully');
+    console.log('📊 Traces -> ', `${OTEL_COLLECTOR_URL}/v1/traces`);
+    console.log('📊 Metrics -> ', `${OTEL_COLLECTOR_URL}/v1/metrics`);
+    console.log('📊 Logs -> ', `${OTEL_COLLECTOR_URL}/v1/logs`);
+    console.log('🏷️  Service:', SERVICE_NAME, 'Version:', SERVICE_VERSION);
+    console.log('🔥 Pyroscope:', process.env.PYROSCOPE_ENABLED !== 'false' ? 'enabled' : 'disabled');
+    
+    // Test trace
+    console.log('🧪 Instrumentation is ready - make API requests to generate telemetry');
+  } catch (error) {
+    console.error('❌ Failed to start OpenTelemetry SDK:', error);
   }
 }
