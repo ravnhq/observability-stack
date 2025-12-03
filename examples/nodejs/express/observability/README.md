@@ -6,13 +6,13 @@ This setup integrates the **LGTM Stack** (Loki, Grafana, Tempo, Mimir/Prometheus
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐     ┌─────────────┐
-│   ExpressJS App    │────▶│  OpenTelemetry       │────▶│   Tempo     │ (Traces)
-│                 │     │  Collector           │     └─────────────┘
+│   ExpressJS App │────▶│  OpenTelemetry       │────▶│   Tempo     │ (Traces)
+│                 │     │  Collector (Alloy)   │     └─────────────┘
 │  - Traces       │     │                      │     ┌─────────────┐
 │  - Metrics      │     │  - Receives OTLP     │────▶│   Loki      │ (Logs)
 │  - Logs         │     │  - Routes telemetry  │     └─────────────┘
 └─────────────────┘     │  - Transforms data   │     ┌─────────────┐
-                        └──────────────────────┘────▶│ Prometheus  │ (Metrics)
+                        └──────────────────────┘────▶│ Mimir       │ (Metrics)
                                                      └─────────────┘
                                                            │
                                                            ▼
@@ -43,7 +43,7 @@ npm run start
 
 | Service     | URL                          | Credentials       |
 |-------------|------------------------------|-------------------|
-| ExpressJS App  | http://localhost:3000        | -                 |
+| ExpressJS App  | http://localhost:3000     | -                 |
 | Grafana     | http://localhost:3001        | admin / admin     |
 | Prometheus  | http://localhost:9090        | -                 |
 | Loki        | http://localhost:3100        | -                 |
@@ -150,7 +150,7 @@ observability/
     │   └── dashboards/
     │       └── dashboards.yaml   # Dashboard provisioning
     └── dashboards/
-        └── nestjs-overview.json  # Pre-built dashboard
+        └── express-overview.json  # Pre-built dashboard
 ```
 
 ## 🔍 Exploring Data in Grafana

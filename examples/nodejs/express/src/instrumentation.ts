@@ -15,7 +15,6 @@ const PYROSCOPE_ENDPOINT = process.env.PYROSCOPE_ENDPOINT || 'http://localhost:4
 const SERVICE_NAME = process.env.OTEL_SERVICE_NAME || process.env.SERVICE_NAME || 'express-app';
 const SERVICE_VERSION = process.env.SERVICE_VERSION || '1.0.0';
 
-// Initialize Pyroscope profiling
 if (process.env.PYROSCOPE_ENABLED !== 'false') {
   Pyroscope.init({
     serverAddress: PYROSCOPE_ENDPOINT,
