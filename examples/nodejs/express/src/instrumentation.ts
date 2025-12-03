@@ -7,12 +7,30 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
+import Pyroscope from '@pyroscope/nodejs';
 
 const OTEL_COLLECTOR_URL = process.env.OTEL_COLLECTOR_URL || 'http://localhost:4318';
+const PYROSCOPE_ENDPOINT = process.env.PYROSCOPE_ENDPOINT || 'http://localhost:4040';
+const SERVICE_NAME = process.env.OTEL_SERVICE_NAME || process.env.SERVICE_NAME || 'express-app';
+const SERVICE_VERSION = process.env.SERVICE_VERSION || '1.0.0';
+
+// Initialize Pyroscope profiling
+if (process.env.PYROSCOPE_ENABLED !== 'false') {
+  Pyroscope.init({
+    serverAddress: PYROSCOPE_ENDPOINT,
+    appName: SERVICE_NAME,
+    tags: {
+      version: SERVICE_VERSION,
+      environment: process.env.NODE_ENV || 'development',
+    }
+  });
+  console.log('🔥 Pyroscope profiling enabled');
+}
 
 const resource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'express-app',
-  [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '1.0.0',
+  [ATTR_SERVICE_NAME]: SERVICE_NAME,
+  [ATTR_SERVICE_VERSION]: SERVICE_VERSION,
   'deployment.environment': process.env.NODE_ENV || 'development',
 });
 
@@ -40,13 +58,23 @@ const sdk = new NodeSDK({
   }),
   logRecordProcessor: new BatchLogRecordProcessor(logExporter),
   instrumentations: [
+    // Pino instrumentation to capture all pino logs and send to OTLP
+    new PinoInstrumentation({
+      logKeys: {
+        traceId: 'trace_id',
+        spanId: 'span_id',
+        traceFlags: 'trace_flags',
+      },
+    }),
+    
     getNodeAutoInstrumentations({
       // Disable fs instrumentation to reduce noise
       '@opentelemetry/instrumentation-fs': { enabled: false },
+      '@opentelemetry/instrumentation-pino': { enabled: true },
       // Configure HTTP instrumentation
       '@opentelemetry/instrumentation-http': {
         ignoreIncomingRequestHook: (request) => {
-          // Ignore health check endpoints
+          // Ignore health check endpoints to reduce noise
           const ignorePaths = ['/health', '/metrics', '/ready', '/live'];
           return ignorePaths.some((path) => request.url?.includes(path));
         },

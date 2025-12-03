@@ -1,13 +1,16 @@
 // src/tasks/task.service.ts
 import { prisma } from '../config/db';
+import { logger } from '../config/logger';
 import { Task } from './task.types';
 import { CreateTaskDto, UpdateTaskDto } from './task.dto';
 
 export class TaskService {
   async findAll(): Promise<Task[]> {
+    logger.info('Fetching all tasks');
     const tasks = await prisma.task.findMany({
       orderBy: { createdAt: 'desc' },
     }) as unknown as Task[];
+    logger.info({ count: tasks.length }, 'Tasks fetched');
     return tasks;
   }
 
@@ -20,6 +23,7 @@ export class TaskService {
   async create(data: CreateTaskDto): Promise<Task> {
     const { name, description, date, status } = data;
 
+    logger.info({ name, status: status ?? 'PENDING' }, 'Creating task');
     const task = await prisma.task.create({
       data: {
         name,
@@ -28,6 +32,7 @@ export class TaskService {
         status: status ?? 'PENDING',
       },
     }) as unknown as Task;
+    logger.info({ taskId: task.id }, 'Task created');
     return task;
   }
 
