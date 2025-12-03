@@ -23,13 +23,63 @@ This setup integrates the **LGTM Stack** (Loki, Grafana, Tempo, Mimir/Prometheus
 
 ## 🚀 Quick Start
 
-### 1. Start the entire stack with Docker Compose
+### 1. Install Dependencies
+
+```bash
+npm install @opentelemetry/sdk-node \
+  @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-trace-otlp-http \
+  @opentelemetry/exporter-metrics-otlp-http \
+  @opentelemetry/exporter-logs-otlp-http \
+  @opentelemetry/resources \
+  @opentelemetry/semantic-conventions \
+  @opentelemetry/sdk-metrics \
+  @opentelemetry/sdk-logs \
+  @opentelemetry/instrumentation-pino \
+  @pyroscope/nodejs \
+  pino \
+  pino-pretty
+```
+
+### 2. Copy Required Files
+
+Copy these files to your project:
+- `src/instrumentation.ts` - OpenTelemetry and Pyroscope setup
+- `src/config/logger.ts` - Pino logger configuration
+- `observability/` - LGTM stack configuration files
+- `docker-compose.yaml` - Docker services orchestration
+
+### 3. Configure Environment Variables
+
+Create a `.env` file with:
+
+```bash
+# Service Configuration
+SERVICE_NAME=express-app
+SERVICE_VERSION=1.0.0
+NODE_ENV=development
+
+# Logging
+LOG_LEVEL=info
+
+# Pyroscope Profiling
+PYROSCOPE_ENABLED=true
+PYROSCOPE_ENDPOINT=http://localhost:4040
+
+# Application
+PORT=3000
+
+# Database
+DATABASE_URL="postgresql://postgres:admin123@localhost:5432/example?schema=public"
+```
+
+### 4. Start the entire stack with Docker Compose
 
 ```bash
 docker-compose up -d
 ```
 
-### 2. Or start just the observability stack (run app locally)
+### 5. Or start just the observability stack (run app locally)
 
 ```bash
 # Start only observability services
