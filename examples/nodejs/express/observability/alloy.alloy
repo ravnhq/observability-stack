@@ -1,0 +1,107 @@
+// Grafana Alloy configuration for OTLP and Prometheus
+
+// OTLP Receiver (receives Traces, Metrics, Logs from the App)
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Batch Processor
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.prometheus.mimir.input]
+    logs    = [otelcol.exporter.loki.default.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// Exporter: Metrics to Mimir (via Prometheus Remote Write)
+otelcol.exporter.prometheus "mimir" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// Prometheus remote write configuration
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://" + env("MIMIR_HOST") + ":" + env("MIMIR_INTERNAL_PORT") + "/api/v1/push"
+  }
+}
+
+// Exporter: Logs to Loki
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+// Loki write configuration
+loki.write "default" {
+  endpoint {
+    url = "http://" + env("LOKI_HOST") + ":" + env("LOKI_INTERNAL_PORT") + "/loki/api/v1/push"
+  }
+}
+
+// Exporter: Traces to Tempo
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = env("TEMPO_HOST") + ":" + env("TEMPO_INTERNAL_PORT")
+    tls {
+      insecure = env("TLS_ENABLED") == "false"
+    }
+  }
+}
+
+
+// Scrape job for PostgreSQL metrics via postgres_exporter
+prometheus.scrape "postgres" {
+  targets = [
+    {
+      "__address__" = "postgres-exporter:9187",
+      "job"         = "postgresql",
+      "environment" = "dev",
+      "service"     = "userdemo-postgres",
+      "database"    = env("POSTGRES_DB"),
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = "/metrics"
+}
+
+// Scrape job for Spring Boot application metrics
+prometheus.scrape "spring_app" {
+  targets = [
+    {
+      "__address__" = "app:8081",
+      "job"         = "userdemo-agent-micrometer",
+      "environment" = "dev",
+      "service"     = "userdemo-agent-micrometer",
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = "/actuator/prometheus"
+}
+
+// Optional: Enable live debugging (only for development)
+// livedebugging {
+//   enabled = true
+// }
+
+// Optional: Logging configuration for debugging
+// logging {
+//   level  = "info"
+//   format = "logfmt"
+// }
