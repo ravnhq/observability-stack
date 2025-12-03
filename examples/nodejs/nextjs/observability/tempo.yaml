@@ -1,0 +1,171 @@
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9097
+  log_level: ${LOG_LEVEL:-info}
+
+# Multi-tenancy configuration
+multitenancy_enabled: ${MULTITENANCY_ENABLED:-false}
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:${ALLOY_OTLP_GRPC_PORT:-4317}
+        http:
+          endpoint: 0.0.0.0:${ALLOY_OTLP_HTTP_PORT:-4318}
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+        grpc:
+          endpoint: 0.0.0.0:14250
+    zipkin:
+      endpoint: 0.0.0.0:9411
+  
+  # Ring configuration for distributed setup
+  ring:
+    kvstore:
+      store: ${KVSTORE_TYPE:-inmemory}
+
+# Ingester configuration
+ingester:
+  trace_idle_period: ${TEMPO_TRACE_IDLE_PERIOD:-10s}
+  max_block_bytes: ${TEMPO_MAX_BLOCK_BYTES:-1000000}
+  max_block_duration: ${TEMPO_MAX_BLOCK_DURATION:-5m}
+  
+  lifecycler:
+    ring:
+      kvstore:
+        store: ${KVSTORE_TYPE:-inmemory}
+      replication_factor: ${TEMPO_REPLICATION_FACTOR:-1}
+
+# Storage configuration - dynamically switches between local and cloud
+storage:
+  trace:
+    backend: ${STORAGE_MODE:-local}
+    
+    # Local storage (development)
+    local:
+      path: ${TEMPO_DATA_PATH:-/var/tempo/traces}
+    
+    # S3 storage (production)
+    s3:
+      bucket: ${S3_BUCKET_TRACES}
+      endpoint: s3.${AWS_REGION}.amazonaws.com
+      region: ${AWS_REGION}
+      access_key: ${AWS_ACCESS_KEY_ID}
+      secret_key: ${AWS_SECRET_ACCESS_KEY}
+      insecure: false
+      part_size: ${S3_PART_SIZE:-5242880}
+    
+    # Google Cloud Storage (alternative)
+    gcs:
+      bucket_name: ${GCS_BUCKET_TRACES}
+      chunk_buffer_size: ${GCS_CHUNK_BUFFER_SIZE:-10485760}
+    
+    # Write-ahead log
+    wal:
+      path: ${TEMPO_DATA_PATH:-/var/tempo}/wal
+
+# Compactor configuration
+compactor:
+  compaction:
+    block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+    compacted_block_retention: ${TEMPO_COMPACTED_BLOCK_RETENTION:-1h}
+    compaction_window: ${TEMPO_COMPACTION_WINDOW:-1h}
+    max_compaction_objects: ${TEMPO_MAX_COMPACTION_OBJECTS:-1000000}
+    retention_concurrency: ${TEMPO_RETENTION_CONCURRENCY:-10}
+    
+  ring:
+    kvstore:
+      store: ${KVSTORE_TYPE:-inmemory}
+
+# Querier configuration (optional)
+querier:
+  # query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s} # DEPRECATED
+  search:
+    # max_duration: ${TEMPO_SEARCH_MAX_DURATION:-0s} # DEPRECATED
+    query_timeout: ${TEMPO_SEARCH_QUERY_TIMEOUT:-30s}
+  
+#   # Optional frontend configuration
+#   # frontend_worker:
+#   #   frontend_address: ${TEMPO_FRONTEND_ADDRESS:-tempo-query-frontend:9095}
+#   #   parallelism: ${TEMPO_FRONTEND_PARALLELISM:-20}
+
+# Query frontend configuration
+query_frontend:
+  search:
+    duration_slo: ${TEMPO_SEARCH_DURATION_SLO:-5s}
+    throughput_bytes_slo: ${TEMPO_SEARCH_THROUGHPUT_SLO:-1073741824}
+    # max_retries: ${TEMPO_SEARCH_MAX_RETRIES:-5} # DEPRECATED
+  trace_by_id:
+    query_shards: ${TEMPO_TRACE_BY_ID_SHARDS:-50}
+
+# Metrics generator for RED metrics
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: ${CLUSTER_NAME:-local}
+      environment: ${ENVIRONMENT:-local}
+  storage:
+    path: ${TEMPO_DATA_PATH:-/var/tempo}/generator/wal
+    remote_write:
+      - url: http://${MIMIR_HOST:-mimir}:${MIMIR_INTERNAL_PORT:-9009}/api/v1/push
+        send_exemplars: true
+        headers:
+          x-scope-orgid: ${DEFAULT_TENANT:-anonymous}
+  traces_storage:
+    path: ${TEMPO_DATA_PATH:-/var/tempo}/generator/traces
+  processor:
+    service_graphs:
+      histogram_buckets: [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+      dimensions: ['http.method', 'http.target', 'http.status_code', 'service.version']
+      peer_attributes: ['db.name', 'db.operation']
+      enable_client_server_prefix: true
+    span_metrics:
+      histogram_buckets: [0.002, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0]
+      dimensions: ['http.method', 'http.status_code', 'service.version'] # expected to be a list of strings
+        # - name: http.method
+        #   default: GET
+        # - name: http.status_code
+        # - name: service.version
+      enable_target_info: true
+
+
+# DEPRECATED
+# Rate limiting and resource management
+# overrides:
+#   max_traces_per_user: ${TEMPO_MAX_TRACES_PER_USER:-50000}
+#   max_bytes_per_trace: ${TEMPO_MAX_BYTES_PER_TRACE:-5000000}
+#   ingestion_rate_strategy: ${TEMPO_INGESTION_RATE_STRATEGY:-global}
+#   ingestion_rate_limit_bytes: ${TEMPO_INGESTION_RATE_MB:-100}000000
+#   ingestion_burst_size_bytes: ${TEMPO_INGESTION_BURST_MB:-200}000000
+#   max_search_duration: ${TEMPO_MAX_SEARCH_DURATION:-0s}
+#   query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s}
+#   block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+
+overrides:
+  defaults:
+    ingestion:
+      max_traces_per_user: ${TEMPO_MAX_TRACES_PER_USER:-50000}
+      rate_strategy: ${TEMPO_INGESTION_RATE_STRATEGY:-global}
+      rate_limit_bytes: ${TEMPO_INGESTION_RATE_MB:-100}000000
+      burst_size_bytes: ${TEMPO_INGESTION_BURST_MB:-200}000000
+
+    read:
+      max_search_duration: ${TEMPO_MAX_SEARCH_DURATION:-0s}
+
+    compaction:
+      block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+
+    metrics_generator:
+      processors: [service-graphs, span-metrics, local-blocks]
+
+    global:
+      max_bytes_per_trace: ${TEMPO_MAX_BYTES_PER_TRACE:-5000000}
+
+# Usage reporting (disabled by default)
+usage_report:
+  reporting_enabled: false
