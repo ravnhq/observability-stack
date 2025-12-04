@@ -1,20 +1,23 @@
+# WARNING: Mimir does not support Shell Variable Default Value Syntax (e.g. ${VARIABLE:-default_value})
+# Use the following syntax instead: ${VARIABLE:default_value}
+
 target: all
 
-multitenancy_enabled: ${MULTITENANCY_ENABLED:-false}
+multitenancy_enabled: ${MULTITENANCY_ENABLED:false}
 
 server:
   http_listen_port: 9009
   grpc_listen_port: 9095
-  log_level: ${LOG_LEVEL:-info}
+  log_level: ${LOG_LEVEL:info}
 
 # Common configuration for storage
 common:
   storage:
-    backend: ${STORAGE_TYPE:-filesystem}
+    backend: ${STORAGE_TYPE:filesystem}
     
     # Filesystem backend (local development)
     filesystem:
-      dir: ${MIMIR_DATA_PATH:-/data}/blocks
+      dir: ${MIMIR_DATA_PATH:/data}/blocks
     
     # S3 backend (production)
     s3:
@@ -25,7 +28,7 @@ common:
       secret_access_key: ${AWS_SECRET_ACCESS_KEY}
       insecure: false
       sse:
-        type: ${S3_SSE_TYPE:-SSE-S3}
+        type: ${S3_SSE_TYPE:SSE-S3}
         kms_key_id: ${S3_KMS_KEY_ID}
     
     # Google Cloud Storage backend (alternative)
@@ -38,123 +41,127 @@ distributor:
   pool:
     health_check_ingesters: true
   ha_tracker:
-    enable_ha_tracker: ${HA_TRACKER_ENABLED:-false}
+    enable_ha_tracker: ${HA_TRACKER_ENABLED:false}
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
+      store: ${KVSTORE_TYPE:inmemory}
   ring:
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
+      store: ${KVSTORE_TYPE:inmemory}
 
 # Ingester configuration
 ingester:
   ring:
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
-    replication_factor: ${MIMIR_REPLICATION_FACTOR:-1}
-    heartbeat_period: ${MIMIR_HEARTBEAT_PERIOD:-5s}
-    heartbeat_timeout: ${MIMIR_HEARTBEAT_TIMEOUT:-1m}
-    tokens_file_path: ${MIMIR_DATA_PATH:-/data}/tokens
-    zone_awareness_enabled: ${ZONE_AWARENESS_ENABLED:-false}
+      store: ${KVSTORE_TYPE:inmemory}
+    replication_factor: ${MIMIR_REPLICATION_FACTOR:1}
+    heartbeat_period: ${MIMIR_HEARTBEAT_PERIOD:5s}
+    heartbeat_timeout: ${MIMIR_HEARTBEAT_TIMEOUT:1m}
+    tokens_file_path: ${MIMIR_DATA_PATH:/data}/tokens
+    zone_awareness_enabled: ${ZONE_AWARENESS_ENABLED:false}
 
-  # TSDB configuration
-  tsdb:
-    dir: ${MIMIR_DATA_PATH:-/data}/ingester
-    block_ranges_period: [2h, 12h, 24h]
-    retention_period: ${MIMIR_TSDB_RETENTION_PERIOD:-6h}
-    ship_interval: ${MIMIR_SHIP_INTERVAL:-1m}
-    ship_concurrency: ${MIMIR_SHIP_CONCURRENCY:-10}
-    head_compaction_interval: ${MIMIR_HEAD_COMPACTION_INTERVAL:-1m}
-    head_compaction_concurrency: ${MIMIR_HEAD_COMPACTION_CONCURRENCY:-5}
-    head_compaction_idle_timeout: ${MIMIR_HEAD_COMPACTION_IDLE_TIMEOUT:-1h}
-    stripe_size: ${MIMIR_STRIPE_SIZE:-16384}
-    wal_compression_enabled: ${MIMIR_WAL_COMPRESSION:-true}
-    flush_blocks_on_shutdown: ${MIMIR_FLUSH_ON_SHUTDOWN:-true}
+  # TSDB configuration DEPRECATED
+  # tsdb:
+  #   dir: ${MIMIR_DATA_PATH:/data}/ingester
+  #   block_ranges_period: [2h, 12h, 24h]
+  #   retention_period: ${MIMIR_TSDB_RETENTION_PERIOD:6h}
+  #   ship_interval: ${MIMIR_SHIP_INTERVAL:1m}
+  #   ship_concurrency: ${MIMIR_SHIP_CONCURRENCY:10}
+  #   head_compaction_interval: ${MIMIR_HEAD_COMPACTION_INTERVAL:1m}
+  #   head_compaction_concurrency: ${MIMIR_HEAD_COMPACTION_CONCURRENCY:5}
+  #   head_compaction_idle_timeout: ${MIMIR_HEAD_COMPACTION_IDLE_TIMEOUT:1h}
+  #   stripe_size: ${MIMIR_STRIPE_SIZE:16384}
+  #   wal_compression_enabled: ${MIMIR_WAL_COMPRESSION:true}
+  #   flush_blocks_on_shutdown: ${MIMIR_FLUSH_ON_SHUTDOWN:true}
 
 # Compactor configuration
 compactor:
-  data_dir: ${MIMIR_DATA_PATH:-/data}/compactor
-  compaction_interval: ${MIMIR_COMPACTION_INTERVAL:-30m}
-  cleanup_interval: ${MIMIR_CLEANUP_INTERVAL:-15m}
-  tenant_cleanup_delay: ${MIMIR_TENANT_CLEANUP_DELAY:-6h}
-  deletion_delay: ${MIMIR_DELETION_DELAY:-12h}
-  first_level_compaction_wait_period: ${MIMIR_FIRST_LEVEL_COMPACTION_WAIT:-25m}
-  max_closing_blocks_concurrency: ${MIMIR_MAX_CLOSING_BLOCKS:-2}
-  max_opening_blocks_concurrency: ${MIMIR_MAX_OPENING_BLOCKS:-4}
-  block_sync_concurrency: ${MIMIR_BLOCK_SYNC_CONCURRENCY:-20}
-  meta_sync_concurrency: ${MIMIR_META_SYNC_CONCURRENCY:-20}
-  blocks_retention_period: ${MIMIR_RETENTION_HOURS:-8760}h
+  data_dir: ${MIMIR_DATA_PATH:/data}/compactor
+  compaction_interval: ${MIMIR_COMPACTION_INTERVAL:30m}
+  cleanup_interval: ${MIMIR_CLEANUP_INTERVAL:15m}
+  tenant_cleanup_delay: ${MIMIR_TENANT_CLEANUP_DELAY:6h}
+  deletion_delay: ${MIMIR_DELETION_DELAY:12h}
+  first_level_compaction_wait_period: ${MIMIR_FIRST_LEVEL_COMPACTION_WAIT:25m}
+  max_closing_blocks_concurrency: ${MIMIR_MAX_CLOSING_BLOCKS:2}
+  max_opening_blocks_concurrency: ${MIMIR_MAX_OPENING_BLOCKS:4}
+  block_sync_concurrency: ${MIMIR_BLOCK_SYNC_CONCURRENCY:20}
+  meta_sync_concurrency: ${MIMIR_META_SYNC_CONCURRENCY:20}
+  # blocks_retention_period: ${MIMIR_RETENTION_HOURS:8760}h # depecrated
   
   sharding_ring:
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
+      store: ${KVSTORE_TYPE:inmemory}
 
 # Store-gateway configuration
 store_gateway:
   sharding_ring:
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
-  
-  bucket_store:
-    ignore_deletion_marks_delay: ${STORE_GATEWAY_IGNORE_DELETION_DELAY:-6h}
-    bucket_index:
-      enabled: ${BUCKET_INDEX_ENABLED:-true}
-      update_on_error_interval: ${BUCKET_INDEX_UPDATE_ERROR_INTERVAL:-1m}
-      update_on_stale_interval: ${BUCKET_INDEX_UPDATE_STALE_INTERVAL:-15m}
-      max_stale_period: ${BUCKET_INDEX_MAX_STALE_PERIOD:-1h}
+      store: ${KVSTORE_TYPE:inmemory}
+  # DEPRECATED
+  # bucket_store:
+  #   ignore_deletion_marks_delay: ${STORE_GATEWAY_IGNORE_DELETION_DELAY:6h}
+  #   bucket_index:
+  #     enabled: ${BUCKET_INDEX_ENABLED:true}
+  #     update_on_error_interval: ${BUCKET_INDEX_UPDATE_ERROR_INTERVAL:1m}
+  #     update_on_stale_interval: ${BUCKET_INDEX_UPDATE_STALE_INTERVAL:15m}
+  #     max_stale_period: ${BUCKET_INDEX_MAX_STALE_PERIOD:1h}
+
 
 # Querier configuration
 querier:
-  max_concurrent: ${QUERIER_MAX_CONCURRENT:-20}
-  timeout: ${QUERIER_TIMEOUT:-2m}
-  max_samples: ${QUERIER_MAX_SAMPLES:-50000000}
-  default_evaluation_interval: ${QUERIER_DEFAULT_EVALUATION_INTERVAL:-1m}
-  
-  store_gateway_client:
-    server_name: store-gateway
+  max_concurrent: ${QUERIER_MAX_CONCURRENT:20}
+  timeout: ${QUERIER_TIMEOUT:2m}
+  max_samples: ${QUERIER_MAX_SAMPLES:50000000}
+  default_evaluation_interval: ${QUERIER_DEFAULT_EVALUATION_INTERVAL:1m}
 
-# Query-frontend configuration
-query_frontend:
-  max_outstanding_per_tenant: ${QUERY_FRONTEND_MAX_OUTSTANDING:-256}
-  query_stats_enabled: ${QUERY_FRONTEND_STATS_ENABLED:-true}
-  log_queries_longer_than: ${QUERY_FRONTEND_LOG_QUERIES_LONGER:-5s}
-  split_queries_by_interval: ${QUERY_FRONTEND_SPLIT_INTERVAL:-24h}
-  align_queries_with_step: ${QUERY_FRONTEND_ALIGN_QUERIES:-true}
-  cache_results: ${QUERY_FRONTEND_CACHE_RESULTS:-true}
-  max_retries: ${QUERY_FRONTEND_MAX_RETRIES:-5}
-  cardinality_analysis_enabled: ${CARDINALITY_ANALYSIS_ENABLED:-true}
+  # DEPRECATED
+  # store_gateway_client: 
+    # server_name: store-gateway 
+
+# DEPRECATED
+# # Query-frontend configuration
+# query_frontend:
+#   max_outstanding_per_tenant: ${QUERY_FRONTEND_MAX_OUTSTANDING:256}
+#   query_stats_enabled: ${QUERY_FRONTEND_STATS_ENABLED:true}
+#   log_queries_longer_than: ${QUERY_FRONTEND_LOG_QUERIES_LONGER:5s}
+#   split_queries_by_interval: ${QUERY_FRONTEND_SPLIT_INTERVAL:24h}
+#   align_queries_with_step: ${QUERY_FRONTEND_ALIGN_QUERIES:true}
+#   cache_results: ${QUERY_FRONTEND_CACHE_RESULTS:true}
+#   max_retries: ${QUERY_FRONTEND_MAX_RETRIES:5}
+#   cardinality_analysis_enabled: ${CARDINALITY_ANALYSIS_ENABLED:true}
 
 # Query-scheduler configuration
 query_scheduler:
-  max_outstanding_requests_per_tenant: ${QUERY_SCHEDULER_MAX_OUTSTANDING:-256}
-  additional_query_queue_dimensions_enabled: ${QUERY_SCHEDULER_ADDITIONAL_DIMENSIONS:-true}
+  max_outstanding_requests_per_tenant: ${QUERY_SCHEDULER_MAX_OUTSTANDING:256}
+  # additional_query_queue_dimensions_enabled: ${QUERY_SCHEDULER_ADDITIONAL_DIMENSIONS:true} # DEPRECATED
 
 # Ruler configuration
 ruler:
-  rule_path: ${MIMIR_DATA_PATH:-/data}/ruler
+  rule_path: ${MIMIR_DATA_PATH:/data}/ruler
   
-  # Remote write for recording rules
-  remote_write:
-    enabled: ${RULER_REMOTE_WRITE_ENABLED:-true}
-    config_refresh_period: ${RULER_CONFIG_REFRESH_PERIOD:-10s}
+  # DEPRECATED
+  # # Remote write for recording rules
+  # remote_write:
+  #   enabled: ${RULER_REMOTE_WRITE_ENABLED:true}
+  #   config_refresh_period: ${RULER_CONFIG_REFRESH_PERIOD:10s}
   
   # Alertmanager configuration
-  alertmanager_url: ${ALERTMANAGER_URL:-http://alertmanager:9093}
-  enable_alertmanager_v2: ${ALERTMANAGER_V2_ENABLED:-true}
+  alertmanager_url: ${ALERTMANAGER_URL:http://alertmanager:9093}
+  # enable_alertmanager_v2: ${ALERTMANAGER_V2_ENABLED:true} # DEPRECATED
   
   # Query configuration
   query_frontend:
-    address: dns:///${MIMIR_HOST:-mimir}:9095
+    address: dns:///${MIMIR_HOST:mimir}:9095
   
   # Ring configuration
   ring:
     kvstore:
-      store: ${KVSTORE_TYPE:-inmemory}
+      store: ${KVSTORE_TYPE:inmemory}
 
 # Ruler storage configuration
 ruler_storage:
-  backend: ${STORAGE_TYPE:-filesystem}
+  backend: ${STORAGE_TYPE:filesystem}
   filesystem:
-    dir: ${MIMIR_DATA_PATH:-/data}/rules
+    dir: ${MIMIR_DATA_PATH:/data}/rules
   s3:
     bucket_name: ${S3_BUCKET_METRICS}
     region: ${AWS_REGION}
@@ -165,25 +172,26 @@ ruler_storage:
 
 # Alertmanager configuration (if using internal alertmanager)
 alertmanager:
-  data_dir: ${MIMIR_DATA_PATH:-/data}/alertmanager
-  external_url: https://alertmanager.${CLUSTER_DOMAIN:-localhost}
-  storage:
-    backend: ${STORAGE_TYPE:-filesystem}
-    filesystem:
-      dir: ${MIMIR_DATA_PATH:-/data}/alertmanager
-    s3:
-      bucket_name: ${S3_BUCKET_METRICS}
-      region: ${AWS_REGION}
-      access_key_id: ${AWS_ACCESS_KEY_ID}
-      secret_access_key: ${AWS_SECRET_ACCESS_KEY}
-    gcs:
-      bucket_name: ${GCS_BUCKET_METRICS}
+  data_dir: ${MIMIR_DATA_PATH:/data}/alertmanager
+  external_url: https://alertmanager.${CLUSTER_DOMAIN:localhost}
+  # DEPRECATED
+  # storage:
+  #   backend: ${STORAGE_TYPE:filesystem}
+  #   filesystem:
+  #     dir: ${MIMIR_DATA_PATH:/data}/alertmanager
+  #   s3:
+  #     bucket_name: ${S3_BUCKET_METRICS}
+  #     region: ${AWS_REGION}
+  #     access_key_id: ${AWS_ACCESS_KEY_ID}
+  #     secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  #   gcs:
+  #     bucket_name: ${GCS_BUCKET_METRICS}
 
 # Blocks storage configuration (legacy - replaced by common.storage)
 blocks_storage:
-  backend: ${STORAGE_TYPE:-filesystem}
+  backend: ${STORAGE_TYPE:filesystem}
   filesystem:
-    dir: ${MIMIR_DATA_PATH:-/data}/blocks
+    dir: ${MIMIR_DATA_PATH:/data}/blocks
   s3:
     endpoint: s3.${AWS_REGION}.amazonaws.com
     region: ${AWS_REGION}
@@ -191,46 +199,47 @@ blocks_storage:
     access_key_id: ${AWS_ACCESS_KEY_ID}
     secret_access_key: ${AWS_SECRET_ACCESS_KEY}
   tsdb:
-    dir: ${MIMIR_DATA_PATH:-/data}/tsdb
+    dir: ${MIMIR_DATA_PATH:/data}/tsdb
 
 # Limits and overrides
 limits:
   # Ingestion limits
-  ingestion_rate: ${MIMIR_INGESTION_RATE:-50000}
-  ingestion_burst_size: ${MIMIR_INGESTION_BURST:-100000}
-  max_global_series_per_user: ${MIMIR_MAX_GLOBAL_SERIES:-1500000}
-  max_global_series_per_metric: ${MIMIR_MAX_GLOBAL_SERIES_PER_METRIC:-0}
-  max_global_metadata_per_user: ${MIMIR_MAX_GLOBAL_METADATA:-8000}
-  max_global_metadata_per_metric: ${MIMIR_MAX_GLOBAL_METADATA_PER_METRIC:-10}
-  max_global_exemplars_per_user: ${MIMIR_MAX_GLOBAL_EXEMPLARS:-100000}
+  ingestion_rate: ${MIMIR_INGESTION_RATE:50000}
+  ingestion_burst_size: ${MIMIR_INGESTION_BURST:100000}
+  max_global_series_per_user: ${MIMIR_MAX_GLOBAL_SERIES:1500000}
+  max_global_series_per_metric: ${MIMIR_MAX_GLOBAL_SERIES_PER_METRIC:0}
+  max_global_metadata_per_user: ${MIMIR_MAX_GLOBAL_METADATA:8000}
+  max_global_metadata_per_metric: ${MIMIR_MAX_GLOBAL_METADATA_PER_METRIC:10}
+  max_global_exemplars_per_user: ${MIMIR_MAX_GLOBAL_EXEMPLARS:100000}
   
   # Query limits
-  max_query_length: ${MIMIR_MAX_QUERY_LENGTH:-32d}
-  max_query_parallelism: ${MIMIR_MAX_QUERY_PARALLELISM:-240}
-  max_samples_per_query: ${MIMIR_MAX_SAMPLES_PER_QUERY:-50000000}
-  max_series_per_query: ${MIMIR_MAX_SERIES_PER_QUERY:-100000}
-  max_chunks_per_query: ${MIMIR_MAX_CHUNKS_PER_QUERY:-2000000}
+  # max_query_length: ${MIMIR_MAX_QUERY_LENGTH:32d} # DEPRECATED
+  max_query_parallelism: ${MIMIR_MAX_QUERY_PARALLELISM:240}
+  # max_samples_per_query: ${MIMIR_MAX_SAMPLES_PER_QUERY:50000000} # DEPRECATED
+  # max_series_per_query: ${MIMIR_MAX_SERIES_PER_QUERY:100000} # DEPRECATED
+  # max_chunks_per_query: ${MIMIR_MAX_CHUNKS_PER_QUERY:2000000} # DEPRECATED
   
   # Cardinality limits
-  max_label_name_length: ${MIMIR_MAX_LABEL_NAME_LENGTH:-1024}
-  max_label_value_length: ${MIMIR_MAX_LABEL_VALUE_LENGTH:-4096}
-  max_label_names_per_series: ${MIMIR_MAX_LABEL_NAMES_PER_SERIES:-30}
-  max_metadata_length: ${MIMIR_MAX_METADATA_LENGTH:-1024}
+  max_label_name_length: ${MIMIR_MAX_LABEL_NAME_LENGTH:1024}
+  max_label_value_length: ${MIMIR_MAX_LABEL_VALUE_LENGTH:4096}
+  max_label_names_per_series: ${MIMIR_MAX_LABEL_NAMES_PER_SERIES:30}
+  max_metadata_length: ${MIMIR_MAX_METADATA_LENGTH:1024}
   
   # Native histogram support
-  native_histograms_ingestion_enabled: ${NATIVE_HISTOGRAMS_ENABLED:-true}
+  native_histograms_ingestion_enabled: ${NATIVE_HISTOGRAMS_ENABLED:true}
 
 # Activity tracker for cardinality analysis
 activity_tracker:
-  filepath: ${MIMIR_DATA_PATH:-/data}/activity
-  max_entries: ${ACTIVITY_TRACKER_MAX_ENTRIES:-1024}
+  filepath: ${MIMIR_DATA_PATH:/data}/activity
+  max_entries: ${ACTIVITY_TRACKER_MAX_ENTRIES:1024}
 
 # Usage statistics (disable in production)
 usage_stats:
   installation_mode: custom
-  enabled: ${USAGE_STATS_ENABLED:-false}
+  enabled: ${USAGE_STATS_ENABLED:false}
 
 # Runtime configuration
 runtime_config:
-  file: ${MIMIR_RUNTIME_CONFIG:-/etc/mimir/runtime.yaml}
-  reload_period: ${MIMIR_RUNTIME_RELOAD_PERIOD:-10s}
+  file: ${MIMIR_RUNTIME_CONFIG:/etc/mimir/runtime.yaml}
+  # reload_period: ${MIMIR_RUNTIME_RELOAD_PERIOD:10s} # DEPRECATED
+

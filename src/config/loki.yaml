@@ -2,6 +2,7 @@ auth_enabled: false
 
 server:
   http_listen_port: 3100
+  grpc_listen_port: 9096
   log_level: ${LOG_LEVEL:-info}
 
 common:
@@ -35,7 +36,7 @@ storage_config:
     access_key_id: ${AWS_ACCESS_KEY_ID}
     secret_access_key: ${AWS_SECRET_ACCESS_KEY}
     s3forcepathstyle: false
-    sse_encryption: ${S3_SSE_ENCRYPTION:-false}
+    # sse_encryption: ${S3_SSE_ENCRYPTION:-false} # Deprecated in v13
   
   # Google Cloud Storage (alternative)
   gcs:
@@ -45,7 +46,7 @@ storage_config:
   tsdb_shipper:
     active_index_directory: ${LOKI_DATA_PATH:-/loki}/index
     cache_location: ${LOKI_DATA_PATH:-/loki}/index_cache
-    shared_store: ${STORAGE_TYPE:-filesystem}
+    # shared_store: ${STORAGE_TYPE:-filesystem} # Deprecated in v13
     cache_ttl: 24h
 
 # Ingester configuration
@@ -64,17 +65,23 @@ ingester:
 # Compactor configuration
 compactor:
   working_directory: ${LOKI_DATA_PATH:-/loki}/compactor
-  shared_store: ${STORAGE_TYPE:-filesystem}
+  # shared_store: ${STORAGE_TYPE:-filesystem} # Deprecated in v13
   compaction_interval: ${LOKI_COMPACTION_INTERVAL:-10m}
   retention_enabled: ${LOKI_COMPACTION_ENABLED:-true}
   retention_delete_delay: ${LOKI_RETENTION_DELETE_DELAY:-2h}
+  # compactor.delete-request-store should be configured when retention is enabled
+  delete_request_store: ${STORAGE_TYPE:-filesystem}
 
 # Ruler configuration (for alerts)
 ruler:
   storage:
-    type: ${STORAGE_TYPE:-filesystem}
-    filesystem:
-      dir: ${LOKI_DATA_PATH:-/loki}/rules
+    # filesystem is deprecated in v13
+    # type: ${STORAGE_TYPE:-filesystem}
+    # filesystem:
+    #   dir: ${LOKI_DATA_PATH:-/loki}/rules
+    type: ${STORAGE_MODE:-local}
+    local:
+      directory: ${LOKI_DATA_PATH:-/loki}/rules
     s3:
       bucketnames: ${S3_BUCKET_LOGS}
       region: ${AWS_REGION}
@@ -90,10 +97,15 @@ ruler:
 query_range:
   results_cache:
     cache:
-      enable_fifocache: true
-      fifocache:
+      embedded_cache:
+        enabled: true
         max_size_items: 1024
-        validity: 24h
+        ttl: 24h
+      # enable_fifocache is deprecated in v13
+      # enable_fifocache: true
+      # fifocache:
+      #   max_size_items: 1024
+      #   validity: 24h
 
 # Rate limiting and retention
 limits_config:

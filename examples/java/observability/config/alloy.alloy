@@ -1,6 +1,4 @@
-// Grafana Alloy configuration for OTLP and Prometheus
-
-// OTLP Receiver (receives Traces, Metrics, Logs from the App)
+// OTLP Receivers
 otelcol.receiver.otlp "default" {
   grpc {
     endpoint = "0.0.0.0:4317"
@@ -25,31 +23,29 @@ otelcol.processor.batch "default" {
   }
 }
 
-// Exporter: Metrics to Mimir (via Prometheus Remote Write)
+// Metrics to Mimir
 otelcol.exporter.prometheus "mimir" {
   forward_to = [prometheus.remote_write.mimir.receiver]
 }
 
-// Prometheus remote write configuration
 prometheus.remote_write "mimir" {
   endpoint {
     url = "http://" + env("MIMIR_HOST") + ":" + env("MIMIR_INTERNAL_PORT") + "/api/v1/push"
   }
 }
 
-// Exporter: Logs to Loki
+// Logs to Loki
 otelcol.exporter.loki "default" {
   forward_to = [loki.write.default.receiver]
 }
 
-// Loki write configuration
 loki.write "default" {
   endpoint {
     url = "http://" + env("LOKI_HOST") + ":" + env("LOKI_INTERNAL_PORT") + "/loki/api/v1/push"
   }
 }
 
-// Exporter: Traces to Tempo
+// Traces to Tempo
 otelcol.exporter.otlp "tempo" {
   client {
     endpoint = env("TEMPO_HOST") + ":" + env("TEMPO_INTERNAL_PORT")

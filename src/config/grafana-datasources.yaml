@@ -1,29 +1,62 @@
+# Grafana data sources auto-provisioning configuration
+# This file automatically configures Mimir, Loki, and Tempo as data sources
+
 apiVersion: 1
 
 datasources:
+  # Mimir (Prometheus-compatible) for metrics
   - name: Mimir
     type: prometheus
     access: proxy
-    url: http://mimir:9009/prometheus
+    url: ${GRAFANA_DS_MIMIR_URL}
     isDefault: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
     editable: true
 
+  # Loki for logs
   - name: Loki
     type: loki
     access: proxy
-    url: http://loki:3100
+    url: ${GRAFANA_DS_LOKI_URL}
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: Tempo
+          matcherRegex: ${GRAFANA_LOKI_TRACE_ID_REGEX}
+          name: TraceID
+          url: "$${__value.raw}"
     editable: true
 
+  # Tempo for distributed tracing
   - name: Tempo
     type: tempo
     access: proxy
-    url: http://tempo:3200
-    editable: true
+    url: ${GRAFANA_DS_TEMPO_URL}
     jsonData:
-      tracesToLogsV2:
-        datasourceUid: 'loki'
-        datasourceType: 'loki'
+      httpMethod: GET
+      streamingEnabled: false
+      tracesToLogs:
+        datasourceUid: Loki
+        mapTagNamesEnabled: false
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: false
+        lokiSearch: true
       tracesToMetrics:
-        datasourceUid: 'mimir'
+        datasourceUid: Mimir
+        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+        queries:
+          - name: 'Sample query'
+            query: 'sum(rate(traces_spanmetrics_latency_bucket{$__tags}[5m]))'
       serviceMap:
-        datasourceUid: 'mimir'
+        datasourceUid: Mimir
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: Loki
+    editable: true

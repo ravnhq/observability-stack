@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # RAVN Observability Stack Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- [branch]
+# Example: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- develop
 
 set -e
 
@@ -9,7 +10,7 @@ set -e
 REPO_URL="https://github.com/ravnhq/observability-stack"
 REPO_API="https://api.github.com/repos/ravnhq/observability-stack"
 INSTALL_DIR="observability"
-BRANCH="master"
+BRANCH="${1:-master}"
 
 # Colors
 RED='\033[0;31m'
@@ -121,6 +122,7 @@ download_src() {
         "config/grafana-datasources.yaml"
         "config/loki.yaml"
         "config/mimir.yaml"
+        "config/mimir-runtime.yaml"
         "config/tempo.yaml"
     )
     
@@ -188,7 +190,7 @@ print_completion() {
     echo "Next steps:"
     echo "  1. Start the stack:    cd $INSTALL_DIR && docker-compose up -d"
     echo "  2. Access Grafana:     http://localhost:3030 (admin/$GRAFANA_PASSWORD)"
-    echo "  3. Configure your app to send telemetry to localhost:4317"
+    echo "  3. Configure your app to send telemetry to localhost:4317 (GRPC) or localhost:4318 (HTTP)"
     echo "  4. Customize settings in $INSTALL_DIR/.env"
     echo ""
     echo "Commands:"

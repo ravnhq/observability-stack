@@ -1,6 +1,5 @@
-# Minimal Grafana Loki configuration for development
+auth_enabled: false
 
-# Server configuration
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
@@ -29,7 +28,7 @@ storage_config:
   # Filesystem storage (local development)
   filesystem:
     directory: ${LOKI_DATA_PATH:-/loki/chunks}
-
+  
   # S3 storage (production)
   aws:
     s3: ${S3_BUCKET_LOGS}
@@ -38,11 +37,11 @@ storage_config:
     secret_access_key: ${AWS_SECRET_ACCESS_KEY}
     s3forcepathstyle: false
     # sse_encryption: ${S3_SSE_ENCRYPTION:-false} # Deprecated in v13
-
+  
   # Google Cloud Storage (alternative)
   gcs:
     bucket_name: ${GCS_BUCKET_LOGS}
-
+  
   # TSDB Index storage
   tsdb_shipper:
     active_index_directory: ${LOKI_DATA_PATH:-/loki}/index
@@ -121,7 +120,3 @@ limits_config:
   per_stream_rate_limit: ${LOKI_PER_STREAM_RATE_LIMIT:-3}MB
   per_stream_rate_limit_burst: ${LOKI_PER_STREAM_RATE_LIMIT_BURST:-15}MB
   cardinality_limit: ${LOKI_CARDINALITY_LIMIT:-100000}
-
-# Authentication and authorization
-auth_enabled: false # Enable for production
-

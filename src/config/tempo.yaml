@@ -1,6 +1,6 @@
 server:
   http_listen_port: 3200
-  grpc_listen_port: 9095
+  grpc_listen_port: 9097
   log_level: ${LOG_LEVEL:-info}
 
 # Multi-tenancy configuration
@@ -43,7 +43,7 @@ ingester:
 # Storage configuration - dynamically switches between local and cloud
 storage:
   trace:
-    backend: ${STORAGE_TYPE:-local}
+    backend: ${STORAGE_MODE:-local}
     
     # Local storage (development)
     local:
@@ -81,23 +81,24 @@ compactor:
     kvstore:
       store: ${KVSTORE_TYPE:-inmemory}
 
-# Querier configuration
+# Querier configuration (optional)
 querier:
-  query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s}
+  # query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s} # DEPRECATED
   search:
-    max_duration: ${TEMPO_SEARCH_MAX_DURATION:-0s}
+    # max_duration: ${TEMPO_SEARCH_MAX_DURATION:-0s} # DEPRECATED
     query_timeout: ${TEMPO_SEARCH_QUERY_TIMEOUT:-30s}
   
-  frontend_worker:
-    frontend_address: ${TEMPO_FRONTEND_ADDRESS:-tempo-query-frontend:9095}
-    parallelism: ${TEMPO_FRONTEND_PARALLELISM:-20}
+#   # Optional frontend configuration
+#   # frontend_worker:
+#   #   frontend_address: ${TEMPO_FRONTEND_ADDRESS:-tempo-query-frontend:9095}
+#   #   parallelism: ${TEMPO_FRONTEND_PARALLELISM:-20}
 
 # Query frontend configuration
 query_frontend:
   search:
     duration_slo: ${TEMPO_SEARCH_DURATION_SLO:-5s}
     throughput_bytes_slo: ${TEMPO_SEARCH_THROUGHPUT_SLO:-1073741824}
-    max_retries: ${TEMPO_SEARCH_MAX_RETRIES:-5}
+    # max_retries: ${TEMPO_SEARCH_MAX_RETRIES:-5} # DEPRECATED
   trace_by_id:
     query_shards: ${TEMPO_TRACE_BY_ID_SHARDS:-50}
 
@@ -125,24 +126,45 @@ metrics_generator:
       enable_client_server_prefix: true
     span_metrics:
       histogram_buckets: [0.002, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0]
-      dimensions:
-        - name: http.method
-          default: GET
-        - name: http.status_code
-        - name: service.version
+      dimensions: ['http.method', 'http.status_code', 'service.version'] # expected to be a list of strings
+        # - name: http.method
+        #   default: GET
+        # - name: http.status_code
+        # - name: service.version
       enable_target_info: true
 
+
+# DEPRECATED
 # Rate limiting and resource management
+# overrides:
+#   max_traces_per_user: ${TEMPO_MAX_TRACES_PER_USER:-50000}
+#   max_bytes_per_trace: ${TEMPO_MAX_BYTES_PER_TRACE:-5000000}
+#   ingestion_rate_strategy: ${TEMPO_INGESTION_RATE_STRATEGY:-global}
+#   ingestion_rate_limit_bytes: ${TEMPO_INGESTION_RATE_MB:-100}000000
+#   ingestion_burst_size_bytes: ${TEMPO_INGESTION_BURST_MB:-200}000000
+#   max_search_duration: ${TEMPO_MAX_SEARCH_DURATION:-0s}
+#   query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s}
+#   block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+
 overrides:
   defaults:
-    max_traces_per_user: ${TEMPO_MAX_TRACES_PER_USER:-50000}
-    max_bytes_per_trace: ${TEMPO_MAX_BYTES_PER_TRACE:-5000000}
-    ingestion_rate_strategy: ${TEMPO_INGESTION_RATE_STRATEGY:-global}
-    ingestion_rate_limit_bytes: ${TEMPO_INGESTION_RATE_MB:-100}000000
-    ingestion_burst_size_bytes: ${TEMPO_INGESTION_BURST_MB:-200}000000
-    max_search_duration: ${TEMPO_MAX_SEARCH_DURATION:-0s}
-    query_timeout: ${TEMPO_QUERY_TIMEOUT:-30s}
-    block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+    ingestion:
+      max_traces_per_user: ${TEMPO_MAX_TRACES_PER_USER:-50000}
+      rate_strategy: ${TEMPO_INGESTION_RATE_STRATEGY:-global}
+      rate_limit_bytes: ${TEMPO_INGESTION_RATE_MB:-100}000000
+      burst_size_bytes: ${TEMPO_INGESTION_BURST_MB:-200}000000
+
+    read:
+      max_search_duration: ${TEMPO_MAX_SEARCH_DURATION:-0s}
+
+    compaction:
+      block_retention: ${TEMPO_RETENTION_HOURS:-336}h
+
+    metrics_generator:
+      processors: [service-graphs, span-metrics, local-blocks]
+
+    global:
+      max_bytes_per_trace: ${TEMPO_MAX_BYTES_PER_TRACE:-5000000}
 
 # Usage reporting (disabled by default)
 usage_report:
