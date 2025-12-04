@@ -60,13 +60,13 @@ otelcol.exporter.otlp "tempo" {
 }
 
 
-// Scrape job for PostgreSQL metrics via postgres_exporter
+// Scrape job for PostgreSQL metrics via postgres_exporter (configurable)
 prometheus.scrape "postgres" {
   targets = [
     {
-      "__address__" = "postgres-exporter:9187",
-      "job"         = "postgresql",
-      "environment" = "dev",
+      "__address__" = env("SCRAPE_POSTGRES_TARGET"),
+      "job"         = env("SCRAPE_POSTGRES_JOB"),
+      "environment" = env("ENVIRONMENT"),
       "service"     = "userdemo-postgres",
       "database"    = env("POSTGRES_DB"),
     },
@@ -75,24 +75,24 @@ prometheus.scrape "postgres" {
   forward_to      = [prometheus.remote_write.mimir.receiver]
   scrape_interval = "15s"
   scrape_timeout  = "10s"
-  metrics_path    = "/metrics"
+  metrics_path    = env("SCRAPE_POSTGRES_METRICS_PATH")
 }
 
-// Scrape job for Spring Boot application metrics
+// Scrape job for Spring Boot application metrics (configurable)
 prometheus.scrape "spring_app" {
   targets = [
     {
-      "__address__" = "app:8081",
-      "job"         = "userdemo-agent-micrometer",
-      "environment" = "dev",
-      "service"     = "userdemo-agent-micrometer",
+      "__address__" = env("SCRAPE_APP_TARGET"),
+      "job"         = env("SCRAPE_APP_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = env("SCRAPE_APP_JOB"),
     },
   ]
 
   forward_to      = [prometheus.remote_write.mimir.receiver]
   scrape_interval = "15s"
   scrape_timeout  = "10s"
-  metrics_path    = "/actuator/prometheus"
+  metrics_path    = env("SCRAPE_APP_METRICS_PATH")
 }
 
 // Optional: Enable live debugging (only for development)

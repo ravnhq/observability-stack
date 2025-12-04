@@ -955,18 +955,21 @@ Ensure you have:
 - ✅ Java 17+ (if building locally)
 - ✅ Maven 3.9+ (if building locally)
 
-### 2. Clone and Start
+### 2. Quick Start
 
+**For local development (both stacks):**
 ```bash
-# Navigate to project directory
-cd /examples/java
+# Start LGTM
+cd observability && docker-compose up -d && cd ..
 
-# Optional: Create environment file
-cp .env.example .env
-
-# Start the entire stack
+# Start app
 docker-compose up --build
 ```
+
+**For production deployment**, see detailed documentation:
+- Observability stack: [observability/README.md](observability/README.md)
+- Application stack: Continue reading this document
+
 
 **Initial startup takes 2-3 minutes** as Docker builds images and starts all services.
 
@@ -1009,17 +1012,123 @@ curl http://localhost:8081/actuator/health
 
 # View Prometheus metrics
 curl http://localhost:8081/actuator/prometheus
+
+```
+### 5. Architecture Overview
+
+```
+┌─────────────────────────────────┐     ┌─────────────────────────────────┐
+│   Observability Stack           │     │   Application Stack             │
+│   (observability/)              │     │   (root)                        │
+│                                 │     │                                 │
+│   • Grafana (dashboards)        │     │   • Spring Boot App             │
+│   • Mimir (metrics)             │     │   • PostgreSQL                  │
+│   • Loki (logs)                 │     │   • postgres-exporter           │
+│   • Tempo (traces)              │     │                                 │
+│   • Alloy (collector)           │     │   Sends telemetry via:          │
+│                                 │     │   • OTLP (traces/logs/metrics)  │
+│   Receives telemetry via:       │◄────┤   Exposes for scraping:         │
+│   • OTLP endpoint (4318/4317)   │     │   • /actuator/prometheus (8081) │
+│   Scrapes metrics from:         │     │   • postgres-exporter (9187)    │
+│   • External targets ────────────────►│                                 │
+└─────────────────────────────────┘     └─────────────────────────────────┘
 ```
 
-### 5. Stop and Clean Up
+### 6. Deployment Scenarios
+
+#### Scenario 1: Co-located Deployment (Same Host)
+
+Both stacks running on the same machine - ideal for development and testing.
 
 ```bash
-# Stop services
-docker-compose down
+# Terminal 1: Start LGTM stack
+cd observability
+docker-compose up -d
 
-# Stop and remove volumes (deletes stored data)
-docker-compose down -v
+# Terminal 2: Start application stack
+cd ..
+docker-compose up -d
 ```
+
+**How it works:**
+- Application connects to Alloy via `host.docker.internal:4318`
+- Alloy scrapes metrics via `host.docker.internal:8081` and `:9187`
+- All services accessible on `localhost`
+
+**Access points:**
+- Application: http://localhost:8081
+- Grafana: http://localhost:3030
+- Alloy UI: http://localhost:12345
+
+#### Scenario 2: Distributed Deployment (Different Hosts)
+
+LGTM stack on dedicated observability host, applications on separate hosts - ideal for production.
+
+**On Observability Host (e.g., 10.0.1.100):**
+
+```bash
+cd observability
+# Edit .env to configure external scrape targets
+echo "SCRAPE_APP_TARGET=10.0.1.101:8081" >> .env
+echo "SCRAPE_POSTGRES_TARGET=10.0.1.101:9187" >> .env
+docker-compose up -d
+```
+
+**On Application Host (e.g., 10.0.1.101):**
+
+```bash
+# Edit .env to point to LGTM stack
+echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://10.0.1.100:4318" >> .env
+docker-compose up -d
+```
+
+**Network requirements:**
+- App host must reach: `<lgtm-host>:4318` (OTLP)
+- LGTM host must reach: `<app-host>:8081` (metrics), `<app-host>:9187` (postgres metrics)
+
+#### Scenario 3: Application-Only Deployment
+
+Deploy application stack against existing LGTM infrastructure.
+
+```bash
+# Configure OTLP endpoint to point to your LGTM stack
+echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://your-lgtm-host:4318" >> .env
+
+# Start application stack
+docker-compose up -d
+```
+
+Use this when:
+- Organization has centralized observability platform
+- Multiple apps share same LGTM stack
+- Simpler app deployment without observability overhead
+
+#### Scenario 4: LGTM-Only Deployment
+
+Deploy standalone LGTM stack ready to receive telemetry from external applications.
+
+```bash
+cd observability
+docker-compose up -d
+```
+
+Use this when:
+- Setting up centralized observability platform
+- Multiple applications will connect to same LGTM stack
+- Applications run outside Docker or in different orchestration
+
+### Configuration Files
+
+**Observability Stack** (`observability/`):
+- `docker-compose.yaml` - LGTM services (Grafana, Mimir, Loki, Tempo, Alloy)
+- `.env` - LGTM configuration (ports, retention, scrape targets)
+- `README.md` - Detailed LGTM stack documentation
+
+**Application Stack** (root):
+- `docker-compose.yaml` - App services (Spring Boot, PostgreSQL, postgres-exporter)
+- `.env` - App configuration (database, OTLP endpoint)
+- `README.md` - This file
+
 
 [Back to Table of Contents](#table-of-contents)
 
