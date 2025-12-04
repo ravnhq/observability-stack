@@ -10,7 +10,23 @@ set -e
 REPO_URL="https://github.com/ravnhq/observability-stack"
 REPO_API="https://api.github.com/repos/ravnhq/observability-stack"
 INSTALL_DIR="observability"
-BRANCH="${1:-master}"
+FORCE_INSTALL=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            FORCE_INSTALL=true
+            shift
+            ;;
+        *)
+            BRANCH="$1"
+            shift
+            ;;
+    esac
+done
+
+BRANCH="${BRANCH:-master}"
 
 # Colors
 RED='\033[0;31m'
@@ -77,13 +93,28 @@ check_dependencies() {
 check_existing_installation() {
     if [ -d "$INSTALL_DIR" ]; then
         print_warning "Directory '$INSTALL_DIR' already exists"
-        read -p "Overwrite? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Installation cancelled"
-            exit 0
+        
+        if [ "$FORCE_INSTALL" = true ]; then
+            print_status "Force flag set, overwriting..."
+            rm -rf "$INSTALL_DIR"
+            return
         fi
-        rm -rf "$INSTALL_DIR"
+        
+        # Check if we're running interactively
+        if [ -t 0 ]; then
+            read -p "Overwrite? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                print_status "Installation cancelled"
+                exit 0
+            fi
+            rm -rf "$INSTALL_DIR"
+        else
+            print_error "Cannot prompt for confirmation in non-interactive mode"
+            echo "  Use: curl -sSL ... | bash -s -- --force"
+            echo "  Or:  curl -sSL ... | bash -s -- -f [branch]"
+            exit 1
+        fi
     fi
 }
 
