@@ -24,7 +24,7 @@ datasources:
       maxLines: 1000
       derivedFields:
         - datasourceUid: Tempo
-          matcherRegex: "\"traceid\":\"(\\w+)\""
+          matcherRegex: ${GRAFANA_LOKI_TRACE_ID_REGEX}
           name: TraceID
           url: "$${__value.raw}"
     editable: true

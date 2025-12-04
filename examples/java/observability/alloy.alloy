@@ -60,6 +60,8 @@ otelcol.exporter.otlp "tempo" {
 }
 
 
+// Scraper Configuration
+
 // Scrape job for PostgreSQL metrics via postgres_exporter (configurable)
 prometheus.scrape "postgres" {
   targets = [
@@ -78,8 +80,8 @@ prometheus.scrape "postgres" {
   metrics_path    = env("SCRAPE_POSTGRES_METRICS_PATH")
 }
 
-// Scrape job for Spring Boot application metrics (configurable)
-prometheus.scrape "spring_app" {
+// Scrape job for application metrics (configurable)
+prometheus.scrape "application" {
   targets = [
     {
       "__address__" = env("SCRAPE_APP_TARGET"),
@@ -95,13 +97,9 @@ prometheus.scrape "spring_app" {
   metrics_path    = env("SCRAPE_APP_METRICS_PATH")
 }
 
-// Optional: Enable live debugging (only for development)
-// livedebugging {
-//   enabled = true
-// }
-
-// Optional: Logging configuration for debugging
-// logging {
-//   level  = "info"
-//   format = "logfmt"
-// }
+// Optional: Enable live debugging
+/*
+livedebugging {
+  enabled = true
+}
+*/
