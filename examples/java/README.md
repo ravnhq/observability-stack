@@ -15,6 +15,11 @@ How to add **production-ready observability** to Spring Boot applications using 
 
 ## How to Setup the LGTM Stack
 
+```bash
+curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/install.sh | bash -s -- -f java
+```
+
 ### 1. Copy Observability Configuration
 
 Copy the `observability` directory to your project root. This folder contains the necessary configuration files for Grafana, Loki, Mimir, Tempo, and Alloy.
@@ -893,55 +898,6 @@ curl http://localhost:8081/actuator/prometheus | grep users_created_total
 
 # The counter should have incremented
 ```
-
-### Dashboard Example
-
-This project includes a complete dashboard example showing custom metrics in action.
-
-![Dashboard Example](observability/grafana/dashboards/Dashboard-Example.png)
-
-**Dashboard components:**
-
-**Top Row - Gauges (Current State):**
-- **Acme Corporation Employees**: 54 users (gauge visualization)
-- **Engineering Solutions GmbH Employees**: 47 users
-- **Siman Employees**: 4 users
-- **Tech Innovations Inc Employees**: 33 users
-
-Each gauge shows the current user count using `users_count_by_company` metric with color coding (red = high, green = low).
-
-**Bottom Row - Time Series (Events Over Time):**
-- **Users Added**: Timeline showing `rate(users_created_total[5m])` by company
-- **Users Deleted**: Timeline showing `rate(users_deleted_total[5m])` by company
-
-**PromQL queries used:**
-
-```promql
-# Gauge panels
-users_count_by_company{company_name="Acme Corporation"}
-
-# Time series panels
-rate(users_created_total[5m])
-rate(users_deleted_total[5m])
-
-# Aggregated view
-sum by (company_name) (users_count_by_company)
-```
-
-**Dashboard features:**
-- **Multi-dimensional filtering**: Filter by company or country using tags
-- **Real-time updates**: Metrics update every 15 seconds (scrape interval)
-- **Business insights**: Non-technical stakeholders can understand user growth
-- **Alerting ready**: Set thresholds on user counts or creation rates
-
-**Creating your own dashboard:**
-1. In Grafana, click **Create → Dashboard**
-2. Add a panel
-3. Select **Mimir** datasource
-4. Enter a PromQL query (e.g., `users_count_by_company`)
-5. Choose visualization type (Gauge, Time series, Bar chart)
-6. Add filters using tag selectors: `{company_name="Acme Corporation"}`
-
 [Back to Table of Contents](#table-of-contents)
 
 ---

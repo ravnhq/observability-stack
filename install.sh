@@ -150,11 +150,13 @@ download_src() {
         "docker-compose.yml"
         ".env.example"
         "config/alloy.alloy"
-        "config/grafana-datasources.yaml"
         "config/loki.yaml"
         "config/mimir.yaml"
         "config/mimir-runtime.yaml"
         "config/tempo.yaml"
+        "grafana/provisioning/datasources/datasources.yaml"
+        "grafana/provisioning/dashboards/dashboards.yaml"
+        "grafana/dashboards/spring-boot-dashboard.json"
     )
     
     local downloaded=0

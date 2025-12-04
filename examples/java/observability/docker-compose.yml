@@ -286,7 +286,8 @@ services:
       - GRAFANA_DS_TEMPO_URL=${GRAFANA_DS_TEMPO_URL:-http://tempo:3200}
       - GRAFANA_LOKI_TRACE_ID_REGEX=${GRAFANA_LOKI_TRACE_ID_REGEX:-"\"trace_id\":\"(\\w+)\""}
     volumes:
-      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./data/grafana:/var/lib/grafana
     networks:
       - observability
