@@ -1,9 +1,8 @@
 # Multi-stage Dockerfile for Spring Boot Application with OpenTelemetry
-# Java 25 (Non-LTS Release - Support ends March 2026)
-# WARNING: Java 25 is not a Long-Term Support (LTS) release. Consider using Java 21 LTS for production.
+# Java 17 LTS
 
 # Stage 1: Build the application
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copy pom.xml first for dependency caching
@@ -29,7 +28,7 @@ RUN apk add --no-cache curl && \
     https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
 
 # Stage 3: Runtime image
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:17-jre
 LABEL maintainer="Spring Boot Application"
 LABEL description="Generic Spring Boot Application with OpenTelemetry Java Agent"
 

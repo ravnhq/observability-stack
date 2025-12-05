@@ -1,0 +1,27 @@
+# ===================================================
+# Spring Boot Application Configuration (Generic Template)
+# ===================================================
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:myapp}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# ===================================================
+# Actuator/Management Endpoints Configuration
+# ===================================================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true

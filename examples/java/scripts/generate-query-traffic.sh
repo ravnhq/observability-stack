@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_URL="${API_URL:-http://localhost:8081}"
+API_URL="${API_URL:-http://localhost:8080}"
 MIN_USER_ID="${MIN_USER_ID:-1}"
 MAX_USER_ID="${MAX_USER_ID:-50}"
 MIN_DELAY_MS="${MIN_DELAY_MS:-100}"

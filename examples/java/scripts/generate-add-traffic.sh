@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_URL="${API_URL:-http://localhost:8081}"
+API_URL="${API_URL:-http://localhost:8080}"
 MIN_DELAY_MS="${MIN_DELAY_MS:-100}"
 MAX_DELAY_MS="${MAX_DELAY_MS:-2000}"
 
