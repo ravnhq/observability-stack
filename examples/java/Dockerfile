@@ -56,20 +56,6 @@ EXPOSE 8081
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
 
-# Environment variables for OpenTelemetry
-ENV OTEL_SERVICE_NAME=userdemo-agent-micrometer
-ENV OTEL_TRACES_EXPORTER=otlp
-ENV OTEL_METRICS_EXPORTER=otlp
-ENV OTEL_LOGS_EXPORTER=otlp
-ENV OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-ENV OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED=true
-ENV OTEL_INSTRUMENTATION_JDBC_ENABLED=true
-ENV OTEL_INSTRUMENTATION_SPRING_WEB_ENABLED=true
-
-# Enable MDC (Mapped Diagnostic Context) instrumentation for trace correlation in logs
-ENV OTEL_INSTRUMENTATION_COMMON_MDC_ENABLED=true
-ENV OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE=true
-
 # JVM Options for container environment
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
                -XX:MaxRAMPercentage=75.0 \
