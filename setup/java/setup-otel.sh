@@ -17,7 +17,24 @@ set -E
 
 SCRIPT_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_DIR="${SCRIPT_DIR}/templates"
+
+# Remote template download configuration
+REPO_URL="https://github.com/ravnhq/observability-stack"
+DEFAULT_BRANCH="master"
+BRANCH="${DEFAULT_BRANCH}"
+TEMP_DIR=""        # Temp directory path for downloaded templates
+TEMPLATE_DIR=""    # Will be set to TEMP_DIR after download
+CLEANUP_REQUIRED=false
+
+# Template files (same for all templates)
+TEMPLATE_FILES=(
+    "Dockerfile"
+    "docker-compose.yaml"
+    ".env.example"
+    "application.properties"
+    "application.yaml"
+    "logback-spring.xml"
+)
 
 # Supported Java versions
 SUPPORTED_JAVA_VERSIONS=(17 21 25)
@@ -230,6 +247,71 @@ detect_java_version() {
     else
         print_warning "Could not auto-detect Java version: $java_version"
         prompt_java_version
+    fi
+}
+
+# ============================================================================
+# Remote Template Download Functions
+# ============================================================================
+
+download_template_file() {
+    local template_name=$1
+    local file_name=$2
+    local dest_path=$3
+
+    local file_url="${REPO_URL}/raw/${BRANCH}/setup/java/templates/${template_name}/${file_name}"
+
+    print_info "Downloading: ${file_name}..."
+
+    if curl -sL --fail "$file_url" -o "$dest_path" 2>/dev/null; then
+        print_success "Downloaded: ${file_name}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+download_template() {
+    local template_name=$1
+
+    print_step "5a" "Downloading template files from GitHub"
+    print_info "Branch: ${BRANCH}"
+    print_info "Template: ${template_name}"
+    echo ""
+
+    # Create temporary directory structure
+    TEMP_DIR=$(mktemp -d -t otel-templates.XXXXXX)
+    CLEANUP_REQUIRED=true
+
+    local template_dest="${TEMP_DIR}/${template_name}"
+    mkdir -p "$template_dest"
+
+    # Download each template file with fail-fast behavior
+    local downloaded=0
+    for file in "${TEMPLATE_FILES[@]}"; do
+        local dest_file="${template_dest}/${file}"
+
+        if download_template_file "$template_name" "$file" "$dest_file"; then
+            ((downloaded++))
+        else
+            print_error "Failed to download: ${file} from branch '${BRANCH}'" false
+            print_error "Template download failed - aborting" true
+        fi
+    done
+
+    print_success "Downloaded ${downloaded}/${#TEMPLATE_FILES[@]} files successfully"
+
+    # Update TEMPLATE_DIR to point to temp directory
+    TEMPLATE_DIR="$TEMP_DIR"
+
+    return 0
+}
+
+cleanup_temp_directory() {
+    if [[ "$CLEANUP_REQUIRED" == true ]] && [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        print_info "Cleaning up temporary files..."
+        rm -rf "$TEMP_DIR"
+        print_success "Cleanup complete"
     fi
 }
 
@@ -712,6 +794,8 @@ OPTIONS:
     --help, -h         Show this help message
     --version, -v      Show script version
     --dry-run          Show what would be done without making changes
+    --branch <name>    Specify Git branch for remote template download
+                       (default: master)
 
 DESCRIPTION:
     Automates the setup of Spring Boot applications with OpenTelemetry
@@ -726,6 +810,16 @@ EXAMPLES:
 
     # Dry run to see what would be done
     ./setup-otel.sh --dry-run
+
+    # Use specific branch
+    ./setup-otel.sh --branch java
+
+REMOTE EXECUTION:
+    # Execute directly from GitHub (default: master branch)
+    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+
+    # Use different branch
+    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/setup/java/setup-otel.sh) --branch java
 
 For more information, see: plan.md
 EOF
@@ -746,6 +840,14 @@ parse_arguments() {
             --version|-v)
                 echo "Spring Boot OpenTelemetry Setup Script v${SCRIPT_VERSION}"
                 exit 0
+                ;;
+            --branch)
+                if [[ -z "$2" ]]; then
+                    print_error "Missing value for --branch flag" true
+                fi
+                BRANCH="$2"
+                print_info "Using branch: $BRANCH"
+                shift 2
                 ;;
             *)
                 print_error "Unknown option: $1" false
@@ -803,18 +905,22 @@ main() {
         include_postgres=true
     fi
 
-    # Step 5: Select template directory
-    print_step "5" "Selecting template"
+    # Step 5: Select and download template
+    print_step "5" "Selecting and downloading template"
     local template_suffix=""
     [[ "$include_postgres" == true ]] && template_suffix="-postgres"
     SELECTED_TEMPLATE="java-${JAVA_VERSION}${template_suffix}"
+    print_success "Selected template: $SELECTED_TEMPLATE"
 
-    # Validate template exists
+    # Always download templates from GitHub
+    download_template "$SELECTED_TEMPLATE"
+
+    # Validate template exists after download
     if [[ ! -d "${TEMPLATE_DIR}/${SELECTED_TEMPLATE}" ]]; then
-        print_error "Template directory not found: ${TEMPLATE_DIR}/${SELECTED_TEMPLATE}" true
+        print_error "Template directory not found after download: ${TEMPLATE_DIR}/${SELECTED_TEMPLATE}" true
     fi
 
-    print_success "Using template: $SELECTED_TEMPLATE"
+    print_success "Template ready: $SELECTED_TEMPLATE"
 
     # Validate project structure
     validate_project_structure
@@ -840,8 +946,17 @@ main() {
 # Script Entry Point
 # ============================================================================
 
-# Trap for unexpected errors
-trap 'print_error "Unexpected error occurred at line $LINENO" true' ERR
+# Trap for cleanup and unexpected errors
+cleanup() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        print_error "Unexpected error occurred" false
+    fi
+    cleanup_temp_directory
+    exit $exit_code
+}
+
+trap cleanup EXIT ERR
 
 # Execute main function
 main "$@"

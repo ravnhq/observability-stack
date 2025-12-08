@@ -1,8 +1,14 @@
 #!/bin/bash
 
 # RAVN Observability Stack Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- [branch]
-# Example: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- develop
+# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- [OPTIONS]
+# Options:
+#   --force          Force installation (overwrite existing)
+#   --branch <name>  Specify branch to install from (default: master)
+# Examples:
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s --
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- --branch develop
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- --force --branch java
 
 set -e
 
@@ -19,9 +25,36 @@ while [[ $# -gt 0 ]]; do
             FORCE_INSTALL=true
             shift
             ;;
+        --branch)
+            if [[ -z "$2" ]]; then
+                echo -e "${RED}Error: Missing value for --branch flag${NC}"
+                echo ""
+                echo "Usage: bash -s -- [OPTIONS]"
+                echo "Options:"
+                echo "  --force          Force installation (overwrite existing)"
+                echo "  --branch <name>  Specify branch to install from (default: master)"
+                echo ""
+                echo "Examples:"
+                echo "  bash -s -- --branch develop"
+                echo "  bash -s -- --force --branch java"
+                exit 1
+            fi
+            BRANCH="$2"
+            shift 2
+            ;;
         *)
-            BRANCH="$1"
-            shift
+            echo -e "${RED}Error: Unknown argument: $1${NC}"
+            echo ""
+            echo "Usage: bash -s -- [OPTIONS]"
+            echo "Options:"
+            echo "  --force          Force installation (overwrite existing)"
+            echo "  --branch <name>  Specify branch to install from (default: master)"
+            echo ""
+            echo "Examples:"
+            echo "  bash -s --                        # Install from master branch"
+            echo "  bash -s -- --branch develop       # Install from develop branch"
+            echo "  bash -s -- --force --branch java  # Force install from java branch"
+            exit 1
             ;;
     esac
 done
@@ -112,7 +145,7 @@ check_existing_installation() {
         else
             print_error "Cannot prompt for confirmation in non-interactive mode"
             echo "  Use: curl -sSL ... | bash -s -- --force"
-            echo "  Or:  curl -sSL ... | bash -s -- -f [branch]"
+            echo "  Or:  curl -sSL ... | bash -s -- --force --branch <branch>"
             exit 1
         fi
     fi
