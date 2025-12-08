@@ -15,53 +15,587 @@ How to add **production-ready observability** to Spring Boot applications using 
 
 ## How to Setup the LGTM Stack
 
-```bash
-curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash
-curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/install.sh | bash -s -- -f java
-```
+The LGTM observability stack (Loki, Grafana, Tempo, Mimir) can be installed with a single command using the provided installation script. The script automatically downloads all necessary configuration files and sets up the complete observability infrastructure.
 
-### 1. Copy Observability Configuration
+### Prerequisites
 
-Copy the `observability` directory to your project root. This folder contains the necessary configuration files for Grafana, Loki, Mimir, Tempo, and Alloy.
+The installation script validates the following dependencies automatically:
+- **Docker**: Container runtime
+- **Docker Compose**: Service orchestration
+- **curl**: For downloading files
 
-```bash
-cp -r examples/java/observability .
-```
+If any dependency is missing, the script will provide installation instructions.
 
-### 2. Add Docker Compose Services
+### Installation Scenarios
 
-Copy the LGTM services configuration from `examples/java/docker-compose.yaml` to your project's `docker-compose.yaml`.
+#### Scenario A: Fresh Installation (Default)
 
-**Services to copy:**
-- `mimir` (Metrics backend)
-- `loki` (Logs backend)
-- `tempo` (Traces backend)
-- `alloy` (Telemetry collector)
-- `grafana` (Visualization)
-
-**Networks to copy:**
-- `observability`
-
-### 3. Configure Environment Variables
-
-If you haven't already, create a `.env` file from the example provided:
+Install the stack from the master branch to a new `./observability/` directory:
 
 ```bash
-cp examples/java/.env.example .env
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
 ```
 
-**Important:** Modify the `.env` file to adapt it to your deployment infrastructure:
-- Set `STORAGE_TYPE` (filesystem, s3, or gcs)
-- Configure cloud credentials (`AWS_ACCESS_KEY_ID`, etc.) if using object storage
-- Adjust ports if necessary to avoid conflicts
+**What this does:**
+- Downloads essential files to `./observability/` directory
+- Creates `.env` file from template
+- Generates a secure Grafana admin password automatically
+
+#### Scenario B: Override Existing Installation
+
+If the `./observability/` directory already exists, the script behavior depends on the execution mode:
+
+**Interactive mode** (default):
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
+```
+The script will detect the existing directory and prompt you for confirmation before overwriting.
+
+**Non-interactive mode** (force overwrite):
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh) --force
+```
+Use the `--force` flag to automatically overwrite without prompting. This is useful for:
+- CI/CD pipelines
+- Automated deployments
+- Quick reinstallation during development
+
+#### Scenario C: Branch-Specific Installation
+
+Install from a specific Git branch (e.g., to test new features or use a development version):
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/install.sh) --branch java
+```
+
+**Note:** When using a different branch, ensure the URL path matches the branch name in both the download URL and the `--branch` parameter.
+
+#### Scenario D: Combined Options
+
+Combine force overwrite with branch selection:
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/install.sh) --force --branch java
+```
+
+### Post-Installation Configuration
+
+After installation, review and modify `./observability/.env` to adapt the stack to your deployment infrastructure:
+
+#### Storage Configuration
+
+```bash
+# Storage backend type
+STORAGE_TYPE=filesystem  # Options: filesystem, s3, gcs
+```
+
+- **filesystem**: Data stored locally (default, good for development)
+- **s3**: AWS S3 buckets (recommended for production)
+- **gcs**: Google Cloud Storage (alternative for GCP deployments)
+
+#### Cloud Storage Credentials (if using S3)
+
+```bash
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+
+# S3 bucket names
+LOKI_S3_BUCKET=loki-logs
+TEMPO_S3_BUCKET=tempo-traces
+MIMIR_S3_BUCKET=mimir-metrics
+```
+
+#### Cloud Storage Credentials (if using GCS)
+
+```bash
+GCS_BUCKET_NAME=your-bucket-name
+GCS_SERVICE_ACCOUNT_KEY=/path/to/service-account-key.json
+```
+
+#### Port Configuration
+
+Adjust ports if defaults conflict with existing services:
+
+```bash
+GRAFANA_PORT=3030        # Default Grafana UI
+ALLOY_OTLP_GRPC_PORT=4317  # OTLP gRPC endpoint
+ALLOY_OTLP_HTTP_PORT=4318  # OTLP HTTP endpoint
+ALLOY_UI_PORT=12345        # Alloy configuration UI
+```
+
+#### Data Retention Periods
+
+Configure how long telemetry data is stored:
+
+```bash
+LOKI_RETENTION_PERIOD=168h    # 7 days (logs)
+TEMPO_RETENTION_PERIOD=336h   # 14 days (traces)
+MIMIR_RETENTION_PERIOD=8760h  # 365 days (metrics)
+```
+
+#### Scrape Targets (for distributed deployments)
+
+Configure external endpoints for Prometheus scraping:
+
+```bash
+# Application metrics endpoint
+SCRAPE_APP_TARGET=host.docker.internal:8080
+SCRAPE_APP_METRICS_PATH=/actuator/prometheus
+
+# PostgreSQL exporter metrics
+SCRAPE_POSTGRES_TARGET=host.docker.internal:9187
+SCRAPE_POSTGRES_METRICS_PATH=/metrics
+```
+
+For distributed deployments where applications run on different hosts, replace `host.docker.internal` with the actual hostname or IP address.
+
+### Starting the LGTM Stack
+
+Once configuration is complete, start all services:
+
+```bash
+cd observability && docker-compose up -d
+```
+
+**Startup time:** Initial startup typically takes 2-3 minutes as Docker builds images and initializes services.
+
+### Access Points
+
+After the stack is running, access these services:
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|---------|
+| **Grafana** | http://localhost:3030 | admin / [generated-password]* | Visualization dashboards |
+| **Alloy UI** | http://localhost:12345 | None | Telemetry pipeline status |
+| **OTLP gRPC** | localhost:4317 | None | Application trace/metric submission |
+| **OTLP HTTP** | localhost:4318 | None | Application trace/metric submission |
+
+**\*Note:** The Grafana password is displayed in the installation output and saved in `./observability/.env`
+
+### Verifying Installation
+
+Check that all services are running:
+
+```bash
+cd observability && docker-compose ps
+```
+
+All services should show status as "Up" or "healthy".
+
+View logs for troubleshooting:
+
+```bash
+cd observability && docker-compose logs -f [service-name]
+```
+
+**Next Step:** Once the LGTM stack is running, proceed to instrument your Spring Boot application (see next section).
 
 ## How to Instrument Your Spring Boot Project
+
+Spring Boot applications can be instrumented with OpenTelemetry using two approaches: an automated setup script (recommended) or manual implementation. The automated script handles both new and existing projects, while the manual approach gives you full control over each step.
+
+### Approach 1: Automated Setup Script (Recommended)
+
+The setup script automates the complete instrumentation process, including downloading the OpenTelemetry Java Agent, configuring Docker, and setting up logging with trace correlation.
+
+> **⚠️ Important for Existing Projects:**
+>
+> The setup script will copy and potentially **overwrite** key configuration files including:
+> - `Dockerfile`
+> - `docker-compose.yaml`
+> - `src/main/resources/application.properties`
+> - `src/main/resources/logback-spring.xml`
+> - `.env`
+>
+> **Use the automated script only if:**
+> - ✅ Creating a brand new project from scratch
+> - ✅ Working with an early-stage project created via Spring Initializr or IDE wizard
+> - ✅ The project has minimal custom configuration that can be safely overwritten
+>
+> **Use manual implementation instead if:**
+> - ❌ Your project has established configurations you want to preserve
+> - ❌ You have custom Docker setups, logging configurations, or environment files
+> - ❌ You need fine-grained control over what changes are made
+> - ❌ Your project is in active development with team-specific conventions
+>
+> See [Approach 2: Manual Implementation](#approach-2-manual-implementation-reference) for step-by-step manual instrumentation that gives you full control.
+
+#### Prerequisites
+
+**Spring Boot CLI is ONLY required if:**
+- You want to create a **new project from scratch** using the script
+- You will answer "Yes" when the script asks "Are you starting a new project?"
+
+**Spring Boot CLI is NOT required if:**
+- You have an **existing project** (created from Spring Initializr, IDE, or manually)
+- You will answer "No" when asked about creating a new project
+- The script will work with any existing Maven-based Spring Boot project
+
+**Installing Spring Boot CLI** (only if needed for new projects):
+- Installation guide: https://docs.spring.io/spring-boot/installing.html#getting-started.installing.cli
+- Verify installation: `spring --version`
+
+#### Basic Usage
+
+**From master branch:**
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+```
+
+**From specific branch:**
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/setup/java/setup-otel.sh) --branch java
+```
+
+#### Script Workflow
+
+The script follows a structured 6-step process:
+
+##### Step 1: Setup Mode Selection
+
+The script asks: **"Are you starting a new project?"**
+
+**If you answer "Yes":**
+- ✅ **Requirement:** Spring Boot CLI must be installed
+- Script will create a complete Spring Boot project from scratch
+- Interactive prompts for project configuration:
+  - Project name, artifact ID, group ID
+  - Java version (17, 21, or 25)
+  - Spring Boot version
+  - Build system (Maven only - Gradle not currently supported)
+  - Packaging type (JAR or WAR)
+  - Additional dependencies (actuator and prometheus are added automatically)
+- After project creation, script automatically adds instrumentation
+
+**If you answer "No":**
+- ❌ **No Spring Boot CLI required**
+- Works with existing projects created by:
+  - Spring Initializr (https://start.spring.io/)
+  - IDE project wizards (IntelliJ IDEA, Eclipse, VS Code)
+  - Manual setup or company templates
+- Script detects existing configuration and adds instrumentation
+- Prompts for file conflicts (overwrite or skip)
+
+##### Step 2: Java Version Detection
+
+**For new projects:**
+- Uses the Java version you specified during project creation
+
+**For existing projects:**
+- Auto-detects Java version from Maven build configuration
+- **Maven detection** checks `pom.xml` for:
+  - `<java.version>17</java.version>`
+  - `<maven.compiler.source>17</maven.compiler.source>`
+  - `<maven.compiler.target>17</maven.compiler.target>`
+- If auto-detection fails, script prompts you to select version (17, 21, or 25)
+
+**Note:** Gradle projects are not currently supported by the automated script. Use manual implementation for Gradle-based projects.
+
+**Supported Java versions:** 17, 21, 25
+
+##### Step 3: Database Configuration
+
+The script asks: **"Do you want to include PostgreSQL database configuration?"**
+
+**If you answer "Yes":**
+- Adds PostgreSQL service to `docker-compose.yaml`
+- Adds postgres-exporter for database metrics collection
+- Includes database connection configuration in `.env`
+- Environment variables for database credentials and connection pool settings
+
+**If you answer "No":**
+- Uses basic template without database services
+- You can add database configuration manually later if needed
+
+##### Step 4: Template Selection & Download
+
+Based on your choices, the script automatically:
+- Selects the appropriate template:
+  - `java-17`, `java-21`, `java-25` (without PostgreSQL)
+  - `java-17-postgres`, `java-21-postgres`, `java-25-postgres` (with PostgreSQL)
+- Downloads template files from GitHub repository
+- Creates temporary directory for downloaded files
+- Validates all required files are present
+
+**Template files downloaded:**
+- `Dockerfile` - Multi-stage build with OpenTelemetry Java Agent
+- `docker-compose.yaml` - Application and optional database services
+- `application.properties` - Spring Boot and Actuator configuration
+- `logback-spring.xml` - Logging with trace correlation
+- `.env.example` - Environment variable template
+
+##### Step 5: File Copy with Conflict Resolution
+
+The script copies configuration files to your project directory.
+
+**For new projects:**
+- All files are copied automatically without prompting
+- No conflict resolution needed (project is new)
+
+**For existing projects:**
+- Script checks each file before copying
+- If file exists, prompts for action:
+  - **[y]es** - Overwrite this file
+  - **[n]o** - Skip this file (keep existing)
+  - **[a]ll** - Overwrite all remaining files without prompting
+- Statistics displayed: files copied, skipped, failed
+
+**Files copied:**
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `Dockerfile` | `./Dockerfile` | Multi-stage build with OTel agent |
+| `docker-compose.yaml` | `./docker-compose.yaml` | Application services orchestration |
+| `application.properties` | `./src/main/resources/application.properties` | Spring Boot configuration |
+| `logback-spring.xml` | `./src/main/resources/logback-spring.xml` | Logging with trace IDs |
+
+##### Step 6: Environment File Creation
+
+Creates `.env` file from template with essential configuration.
+
+**For new projects:**
+- Automatically creates `.env` without prompting
+
+**For existing projects:**
+- If `.env` exists, prompts: "Overwrite existing .env file?"
+- Recommendation: Review differences before overwriting
+
+**Key environment variables configured:**
+
+```bash
+# OpenTelemetry Agent Configuration
+OTEL_SERVICE_NAME=your-service-name
+OTEL_SERVICE_VERSION=0.0.1
+OTEL_DEPLOYMENT_ENVIRONMENT=development
+OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+
+# MDC Instrumentation (for trace correlation in logs)
+OTEL_INSTRUMENTATION_COMMON_MDC_ENABLED=true
+OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE=true
+```
+
+**PostgreSQL configuration** (if selected):
+```bash
+# Database Configuration
+POSTGRES_DB=mydatabase
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=secret
+DB_URL=jdbc:postgresql://postgres:5432/mydatabase
+```
+
+#### Common Scenarios
+
+##### Scenario A: New Project from Scratch via Script
+
+**Best for:** Greenfield projects, learning, prototyping
+
+**Workflow:**
+1. Ensure Spring Boot CLI is installed: `spring --version`
+2. Run setup script: `bash <(curl -sSL ...)`
+3. Answer "Yes" to "Are you starting a new project?"
+4. Follow interactive prompts for project configuration
+5. Script creates project and adds instrumentation automatically
+6. Navigate to project directory and start: `docker-compose up --build`
+
+**Requirements:** Spring Boot CLI installed
+
+##### Scenario B: Early-Stage Existing Project Instrumentation
+
+**Best for:** Adding observability to early-stage Maven projects created via Spring Initializr or IDE wizards
+
+**⚠️ Important:** This scenario is recommended only for projects in their initial phase where overwriting configuration files is acceptable. For established projects with custom configurations, use [Approach 2: Manual Implementation](#approach-2-manual-implementation-reference) instead.
+
+**Workflow:**
+1. Navigate to your existing Spring Boot project directory
+2. **Verify:** Ensure your project uses Maven (check for `pom.xml`)
+3. **Verify:** Ensure this is an early-stage project where configuration overwrites are acceptable
+4. Run setup script: `bash <(curl -sSL ...)`
+5. Answer "No" to "Are you starting a new project?"
+6. Script detects Java version from existing build files
+7. Choose PostgreSQL configuration (Yes/No)
+8. **Carefully review** file overwrite prompts - choose "No" for files you want to preserve
+9. Update .env with your service name and configuration
+10. Start application: `docker-compose up --build`
+
+**Requirements:**
+- Maven-based project (pom.xml must exist)
+- No Spring Boot CLI needed
+
+**Note:** If your project doesn't have actuator and micrometer-registry-prometheus dependencies, add them to `pom.xml` before running. *Gradle projects are not supported by the automated script - use manual implementation instead.*
+
+##### Scenario C: Spring Initializr + Script for Instrumentation
+
+> **⚠️ Requirement:** Project must use Maven (pom.xml)
+
+**Best for:** Users who prefer Spring Initializr UI but want automated instrumentation
+
+**Workflow:**
+1. Create project at https://start.spring.io/
+   - Add dependencies: Spring Boot Actuator, Prometheus
+   - Download and extract the project
+2. Navigate to extracted project directory
+3. Run setup script: `bash <(curl -sSL ...)`
+4. Answer "No" to "Are you starting a new project?"
+5. Script adds Docker configuration and logging setup
+6. Update .env with your configuration
+7. Start application: `docker-compose up --build`
+
+**Requirements:** None (no Spring Boot CLI needed)
+
+**Advantages:**
+- Visual dependency selection in Spring Initializr
+- Automated Docker and logging configuration via script
+- Best of both worlds
+
+##### Scenario D: IDE-Generated Project + Script
+
+> **⚠️ Requirement:** Project must use Maven (pom.xml). If using Gradle, use manual implementation.
+
+**Best for:** Developers using IntelliJ IDEA, Eclipse, or VS Code
+
+**Workflow:**
+1. Create Spring Boot project using IDE wizard
+   - Select Maven as build tool
+   - Ensure you add: Spring Boot Actuator, Micrometer Prometheus Registry
+2. Navigate to project directory in terminal
+3. Run setup script: `bash <(curl -sSL ...)`
+4. Answer "No" to "Are you starting a new project?"
+5. Script detects configuration and adds instrumentation
+6. Review file conflicts and choose overwrite/skip as needed
+7. Update .env with your configuration
+8. Start application: `docker-compose up --build`
+
+**Requirements:**
+- Maven-based project (pom.xml must exist)
+- No Spring Boot CLI needed
+
+#### What the Script Configures
+
+##### Dockerfile (Multi-stage Build)
+
+The generated Dockerfile includes:
+
+**Stage 1: Build Stage**
+- Uses Maven to build the application (Gradle not currently supported)
+- Caches dependencies for faster subsequent builds
+
+**Stage 2: OpenTelemetry Agent Download**
+- Downloads latest OpenTelemetry Java Agent from GitHub releases
+- URL: https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+
+**Stage 3: Runtime Stage**
+- Uses minimal Eclipse Temurin JRE image
+- Copies built JAR and OTel agent
+- Runs as non-root user for security
+- ENTRYPOINT: `java $JAVA_OPTS -javaagent:otel-javaagent.jar -jar app.jar`
+- Includes health check for container orchestration
+
+##### application.properties
+
+Configures Spring Boot Actuator and metrics:
+
+```properties
+spring.application.name=${SPRING_APPLICATION_NAME:demo}
+server.port=${SERVER_PORT:8080}
+
+# Actuator endpoints
+management.endpoints.web.exposure.include=health,info,prometheus,metrics
+management.endpoint.health.show-details=always
+```
+
+**Key endpoints exposed:**
+- `/actuator/health` - Application health status
+- `/actuator/prometheus` - Prometheus metrics (scraped by Alloy)
+- `/actuator/metrics` - Micrometer metrics
+
+##### logback-spring.xml
+
+Configures logging with OpenTelemetry trace correlation:
+
+```xml
+<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceid=%X{trace_id:-}, spanid=%X{span_id:-}] - %msg%n</pattern>
+```
+
+**What this does:**
+- Includes `trace_id` and `span_id` in every log entry
+- Enables linking logs to distributed traces in Grafana
+- MDC (Mapped Diagnostic Context) values injected automatically by OTel agent
+- Logs show: `[traceid=abc123, spanid=def456]` for active spans
+
+##### docker-compose.yaml
+
+Orchestrates application and optional services:
+
+**Application service:**
+- Builds from Dockerfile
+- Exposes application port (default 8080)
+- Passes OpenTelemetry environment variables
+- Connects to observability stack via OTLP endpoint
+
+**PostgreSQL service** (if selected):
+- PostgreSQL 16 database
+- Health checks for reliable startup
+- Persistent volume for data
+
+**postgres-exporter service** (if selected):
+- Exposes PostgreSQL metrics at port 9187
+- Scraped by Alloy for database observability
+
+##### .env Configuration
+
+Environment variables for application and instrumentation:
+
+**Service identification:**
+```bash
+OTEL_SERVICE_NAME=your-service-name
+OTEL_SERVICE_VERSION=0.0.1
+OTEL_DEPLOYMENT_ENVIRONMENT=development
+```
+
+**OTLP endpoint:**
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+```
+
+**Trace correlation in logs:**
+```bash
+OTEL_INSTRUMENTATION_COMMON_MDC_ENABLED=true
+OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE=true
+```
+
+#### After Setup Complete
+
+**Next steps:**
+1. Review and update `.env` with your service name and configuration
+2. Build and start application: `docker-compose up -d --build`
+3. Access application: http://localhost:8080
+4. View metrics: http://localhost:8080/actuator/prometheus
+5. Check Grafana for traces: http://localhost:3030
+
+**Connecting to LGTM Stack:**
+- If LGTM stack is running on the same host, the default OTLP endpoint works: `http://host.docker.internal:4318`
+- For distributed deployments, update `OTEL_EXPORTER_OTLP_ENDPOINT` in `.env` to point to your Alloy instance
+
+### Approach 2: Manual Implementation (Reference)
+
+This manual approach gives you complete control over the instrumentation process and is the **recommended approach** for:
+- Established projects with existing configurations
+- Gradle-based projects (not supported by automated script)
+- Projects requiring custom Docker, logging, or environment setups
+- Teams with specific conventions and standards
+
+**Supported build tools:** Maven and Gradle both work with manual implementation.
+
+For users who prefer manual control or want to understand each step, follow this checklist to implement instrumentation yourself.
 
 ### Checklist: Implementing in Existing Apps
 
 #### 1. Add Dependencies
 
 Add the Spring Boot Actuator and Micrometer Prometheus Registry dependencies to your project.
+
+**Note:** While the automated setup script only supports Maven, you can manually implement instrumentation for Gradle projects by following these steps.
 
 **Maven** (`pom.xml`):
 ```xml
@@ -133,27 +667,26 @@ environment:
 
 #### 6. Set Up Grafana Alloy
 
-Copy `observability/alloy.alloy` from this project and modify:
-- Update service name in scrape targets
+- Update the env variables as needed in observability/.env
 - Update endpoints to match your infrastructure
 - Adjust scrape intervals if needed
 
 ```
-// Scrape job for Spring Boot application metrics
-prometheus.scrape "spring_app" {
+// Scrape job for application metrics (configurable)
+prometheus.scrape "application" {
   targets = [
     {
-      "__address__" = "app:8081",
-      "job"         = "userdemo-agent-micrometer",
-      "environment" = "dev",
-      "service"     = "userdemo-agent-micrometer",
+      "__address__" = env("SCRAPE_APP_TARGET"),
+      "job"         = env("SCRAPE_APP_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = env("SCRAPE_APP_JOB"),
     },
   ]
 
   forward_to      = [prometheus.remote_write.mimir.receiver]
   scrape_interval = "15s"
   scrape_timeout  = "10s"
-  metrics_path    = "/actuator/prometheus"
+  metrics_path    = env("SCRAPE_APP_METRICS_PATH")
 }
 ```
 
@@ -996,6 +1529,28 @@ curl http://localhost:8081/actuator/prometheus
 
 Both stacks running on the same machine - ideal for development and testing.
 
+**Quick setup using installation scripts:**
+
+```bash
+# Step 1: Install LGTM stack
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
+cd observability && docker-compose up -d && cd ..
+
+# Step 2: Instrument your Spring Boot application
+# For new projects (requires Spring Boot CLI):
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+
+# For existing projects (no Spring Boot CLI needed):
+cd your-existing-project
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+# Answer "No" when asked about creating a new project
+
+# Step 3: Start application
+docker-compose up -d --build
+```
+
+**Manual setup** (if not using scripts):
+
 ```bash
 # Terminal 1: Start LGTM stack
 cd observability
@@ -1010,6 +1565,7 @@ docker-compose up -d
 - Application connects to Alloy via `host.docker.internal:4318`
 - Alloy scrapes metrics via `host.docker.internal:8081` and `:9187`
 - All services accessible on `localhost`
+- Default configuration works without modifications
 
 **Access points:**
 - Application: http://localhost:8081
@@ -1023,55 +1579,97 @@ LGTM stack on dedicated observability host, applications on separate hosts - ide
 **On Observability Host (e.g., 10.0.1.100):**
 
 ```bash
+# Step 1: Install LGTM stack
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
+
+# Step 2: Configure for distributed deployment
 cd observability
 # Edit .env to configure external scrape targets
 echo "SCRAPE_APP_TARGET=10.0.1.101:8081" >> .env
 echo "SCRAPE_POSTGRES_TARGET=10.0.1.101:9187" >> .env
+
+# Optional: Configure for production storage (S3 or GCS)
+echo "STORAGE_TYPE=s3" >> .env  # or 'gcs' for Google Cloud
+# Add cloud credentials if using S3/GCS (see "How to Setup the LGTM Stack" section)
+
+# Step 3: Start LGTM stack
 docker-compose up -d
 ```
 
 **On Application Host (e.g., 10.0.1.101):**
 
 ```bash
+# Step 1: Instrument application using setup script
+cd your-project-directory
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+# Answer "No" for new project (assuming existing project)
+
+# Step 2: Configure to connect to remote LGTM stack
 # Edit .env to point to LGTM stack
 echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://10.0.1.100:4318" >> .env
-docker-compose up -d
+
+# Step 3: Start application
+docker-compose up -d --build
 ```
 
 **Network requirements:**
-- App host must reach: `<lgtm-host>:4318` (OTLP)
-- LGTM host must reach: `<app-host>:8081` (metrics), `<app-host>:9187` (postgres metrics)
+- App host must reach: `<lgtm-host>:4318` (OTLP endpoint for traces/metrics/logs)
+- LGTM host must reach: `<app-host>:8081` (Prometheus metrics scraping)
+- LGTM host must reach: `<app-host>:9187` (PostgreSQL metrics, if using postgres)
+
+**Configuration notes:**
+- All configuration is managed via `.env` files on each host
+- See "How to Setup the LGTM Stack" section for detailed `.env` configuration options
+- Consider using TLS and authentication for production deployments
+- Adjust retention periods and storage limits based on your requirements
 
 #### Scenario 3: Application-Only Deployment
 
 Deploy application stack against existing LGTM infrastructure.
 
 ```bash
-# Configure OTLP endpoint to point to your LGTM stack
+# Step 1: Instrument your application
+cd your-project-directory
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+# Answer "No" for new project
+
+# Step 2: Configure OTLP endpoint to point to your LGTM stack
 echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://your-lgtm-host:4318" >> .env
 
-# Start application stack
-docker-compose up -d
+# Step 3: Start application stack
+docker-compose up -d --build
 ```
 
-Use this when:
+**Use this when:**
 - Organization has centralized observability platform
 - Multiple apps share same LGTM stack
 - Simpler app deployment without observability overhead
+- LGTM stack already managed by infrastructure team
 
 #### Scenario 4: LGTM-Only Deployment
 
 Deploy standalone LGTM stack ready to receive telemetry from external applications.
 
 ```bash
+# Install LGTM stack
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
+
+# Configure and start
 cd observability
+# Edit .env for production configuration (storage, retention, etc.)
 docker-compose up -d
 ```
 
-Use this when:
+**Use this when:**
 - Setting up centralized observability platform
 - Multiple applications will connect to same LGTM stack
-- Applications run outside Docker or in different orchestration
+- Applications run outside Docker or in different orchestration systems
+- Building multi-tenant observability infrastructure
+
+**Configuration:**
+- Applications point their `OTEL_EXPORTER_OTLP_ENDPOINT` to this host
+- Configure scrape targets in `.env` for each application's metrics endpoint
+- See "How to Setup the LGTM Stack" section for advanced configuration
 
 ### Configuration Files
 
