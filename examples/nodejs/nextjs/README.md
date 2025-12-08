@@ -1,133 +1,36 @@
-# Next.js Task Manager with LGTM Observability Stack
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A full-stack Next.js application with complete observability using the **LGTM Stack** (Loki, Grafana, Tempo, Mimir/Prometheus) and OpenTelemetry.
+## Getting Started
 
-## 🏗️ Architecture
-
-```
-┌─────────────────┐     ┌──────────────────────┐     ┌─────────────┐
-│  Next.js App    │────▶│  OpenTelemetry       │────▶│   Tempo     │ (Traces)
-│                 │     │  Collector (Alloy)   │     └─────────────┘
-│  - API Routes   │     │                      │     ┌─────────────┐
-│  - React UI     │     │  - Receives OTLP     │────▶│   Loki      │ (Logs)
-│  - Traces       │     │  - Routes telemetry  │     └─────────────┘
-│  - Metrics      │     │  - Transforms data   │     ┌─────────────┐
-│  - Logs         │     └──────────────────────┘────▶│ Mimir       │ (Metrics)
-└─────────────────┘                                  └─────────────┘
-                                                           │
-                                                           ▼
-                                                     ┌─────────────┐
-                                                     │ Pyroscope   │ (Profiling)
-                                                     └─────────────┘
-                                                           │
-                                                           ▼
-                                                     ┌─────────────┐
-                                                     │   Grafana   │ (Visualization)
-                                                     └─────────────┘
-```
-
-## ✨ Features
-
-### Task Management
-- ✅ Create, Read, Update, Delete (CRUD) tasks
-- 📅 Task scheduling with dates
-- 🎯 Task status tracking (Pending, In Progress, Done)
-- 💅 Modern, responsive UI with Tailwind CSS
-
-### Observability
-- 📊 **Traces** - Automatic HTTP request tracing with Tempo
-- 📈 **Metrics** - Request rate, latency, and custom metrics with Mimir
-- 📝 **Logs** - Structured logging with trace correlation via Loki
-- 🔥 **Profiling** - CPU and memory profiling with Pyroscope
-- 🔗 **Correlation** - Logs automatically linked to traces
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
-
-```bash
-npm install
-```
-
-### 2. Configure Environment Variables
-
-Copy `.env.example` to `.env`:
-
-```bash
-cp .env.example .env
-```
-
-### 3. Start the Observability Stack
-
-```bash
-docker-compose up -d grafana tempo loki mimir alloy pyroscope postgres
-```
-
-### 4. Setup Database
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate
-```
-
-### 5. Run the Application
+First, run the development server:
 
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-### 6. Or Run Everything with Docker
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-docker-compose up -d
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## 📱 Access the Services
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-| Service         | URL                          | Credentials   |
-|-----------------|------------------------------|---------------|
-| Next.js App     | http://localhost:3000        | -             |
-| Grafana         | http://localhost:3030        | admin / admin |
-| Pyroscope       | http://localhost:4040        | -             |
+## Learn More
 
-## 📊 What's Included
+To learn more about Next.js, take a look at the following resources:
 
-- ✅ Automatic HTTP request tracing
-- ✅ Database query tracing (Prisma)
-- ✅ Structured JSON logging with Pino
-- ✅ Log correlation with trace IDs
-- ✅ CPU and memory profiling with Pyroscope
-- ✅ Modern, responsive UI with Tailwind CSS
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## 🔧 Configuration
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Required Files for Your Own Project
+## Deploy on Vercel
 
-Copy these files to add LGTM observability:
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-1. **`instrumentation.ts`** - OpenTelemetry and Pyroscope setup
-2. **`src/lib/logger.ts`** - Pino logger configuration
-3. **`observability/`** - LGTM stack configuration files
-4. **`docker-compose.yaml`** - Docker services orchestration
-
-### Adding Logging to Your Code
-
-```typescript
-import { logger } from '@/lib/logger';
-
-export async function GET() {
-  logger.info('Fetching data');
-  logger.info({ count: data.length }, 'Data retrieved');
-}
-```
-
-## 📚 Resources
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
-- [Grafana LGTM Stack](https://grafana.com/oss/lgtm-stack/)
-- [Pino Logger](https://getpino.io/)
-
----
-
-Built with ❤️ using Next.js 15, React 19, OpenTelemetry, and the LGTM Stack
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
