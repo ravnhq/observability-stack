@@ -28,7 +28,7 @@ If any dependency is missing, the script will provide installation instructions.
 
 ### Installation Scenarios
 
-#### Scenario A: Fresh Installation (Default)
+#### Fresh Installation (Default)
 
 Install the stack from the master branch to a new `./observability/` directory:
 
@@ -41,26 +41,9 @@ bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/ma
 - Creates `.env` file from template
 - Generates a secure Grafana admin password automatically
 
-#### Scenario B: Override Existing Installation
+**Startup time:** Initial startup typically takes 2-3 minutes as Docker builds images and initializes services.
 
-If the `./observability/` directory already exists, the script behavior depends on the execution mode:
-
-**Interactive mode** (default):
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
-```
-The script will detect the existing directory and prompt you for confirmation before overwriting.
-
-**Non-interactive mode** (force overwrite):
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh) --force
-```
-Use the `--force` flag to automatically overwrite without prompting. This is useful for:
-- CI/CD pipelines
-- Automated deployments
-- Quick reinstallation during development
-
-#### Scenario C: Branch-Specific Installation
+#### Branch-Specific Installation
 
 Install from a specific Git branch (e.g., to test new features or use a development version):
 
@@ -69,14 +52,6 @@ bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/ja
 ```
 
 **Note:** When using a different branch, ensure the URL path matches the branch name in both the download URL and the `--branch` parameter.
-
-#### Scenario D: Combined Options
-
-Combine force overwrite with branch selection:
-
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/install.sh) --force --branch java
-```
 
 ### Post-Installation Configuration
 
@@ -146,19 +121,13 @@ SCRAPE_APP_METRICS_PATH=/actuator/prometheus
 # PostgreSQL exporter metrics
 SCRAPE_POSTGRES_TARGET=host.docker.internal:9187
 SCRAPE_POSTGRES_METRICS_PATH=/metrics
+
+# Node exporter metrics
+SCRAPE_NODE_EXPORTER_TARGET=host.docker.internal:9100
+SCRAPE_NODE_EXPORTER_METRICS_PATH=/metrics
 ```
 
 For distributed deployments where applications run on different hosts, replace `host.docker.internal` with the actual hostname or IP address.
-
-### Starting the LGTM Stack
-
-Once configuration is complete, start all services:
-
-```bash
-cd observability && docker-compose up -d
-```
-
-**Startup time:** Initial startup typically takes 2-3 minutes as Docker builds images and initializes services.
 
 ### Access Points
 
@@ -173,24 +142,6 @@ After the stack is running, access these services:
 
 **\*Note:** The Grafana password is displayed in the installation output and saved in `./observability/.env`
 
-### Verifying Installation
-
-Check that all services are running:
-
-```bash
-cd observability && docker-compose ps
-```
-
-All services should show status as "Up" or "healthy".
-
-View logs for troubleshooting:
-
-```bash
-cd observability && docker-compose logs -f [service-name]
-```
-
-**Next Step:** Once the LGTM stack is running, proceed to instrument your Spring Boot application (see next section).
-
 ## How to Instrument Your Spring Boot Project
 
 Spring Boot applications can be instrumented with OpenTelemetry using two approaches: an automated setup script (recommended) or manual implementation. The automated script handles both new and existing projects, while the manual approach gives you full control over each step.
@@ -198,6 +149,37 @@ Spring Boot applications can be instrumented with OpenTelemetry using two approa
 ### Approach 1: Automated Setup Script (Recommended)
 
 The setup script automates the complete instrumentation process, including downloading the OpenTelemetry Java Agent, configuring Docker, and setting up logging with trace correlation.
+
+#### Prerequisites
+
+**Spring Boot CLI is ONLY required if:**
+- You want to create a **new project from scratch** using the script
+- You will answer "Yes" when the script asks "Are you starting a new project?"
+- Installation guide: https://docs.spring.io/spring-boot/installing.html#getting-started.installing.cli
+- Verify installation: `spring --version`
+
+**Spring Boot CLI is NOT required if:**
+- You have an **existing project** (created from Spring Initializr, IDE, or manually)
+- You will answer "No" when asked about creating a new project
+- The script will work with any existing Maven-based Spring Boot project
+
+#### Basic Usage
+
+**From master branch:**
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+```
+
+**From specific branch:**
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/setup/java/setup-otel.sh) --branch java
+```
+
+**Note:** Gradle projects are not currently supported by the automated script. Use manual implementation for Gradle-based projects.
+
+**Supported Java versions:** 17, 21, 25
+
+**Files copied:**
 
 > **⚠️ Important for Existing Projects:**
 >
@@ -221,127 +203,6 @@ The setup script automates the complete instrumentation process, including downl
 >
 > See [Approach 2: Manual Implementation](#approach-2-manual-implementation-reference) for step-by-step manual instrumentation that gives you full control.
 
-#### Prerequisites
-
-**Spring Boot CLI is ONLY required if:**
-- You want to create a **new project from scratch** using the script
-- You will answer "Yes" when the script asks "Are you starting a new project?"
-
-**Spring Boot CLI is NOT required if:**
-- You have an **existing project** (created from Spring Initializr, IDE, or manually)
-- You will answer "No" when asked about creating a new project
-- The script will work with any existing Maven-based Spring Boot project
-
-**Installing Spring Boot CLI** (only if needed for new projects):
-- Installation guide: https://docs.spring.io/spring-boot/installing.html#getting-started.installing.cli
-- Verify installation: `spring --version`
-
-#### Basic Usage
-
-**From master branch:**
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
-```
-
-**From specific branch:**
-```bash
-bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/setup/java/setup-otel.sh) --branch java
-```
-
-#### Script Workflow
-
-The script follows a structured 6-step process:
-
-##### Step 1: Setup Mode Selection
-
-The script asks: **"Are you starting a new project?"**
-
-**If you answer "Yes":**
-- ✅ **Requirement:** Spring Boot CLI must be installed
-- Script will create a complete Spring Boot project from scratch
-- Interactive prompts for project configuration:
-  - Project name, artifact ID, group ID
-  - Java version (17, 21, or 25)
-  - Spring Boot version
-  - Build system (Maven only - Gradle not currently supported)
-  - Packaging type (JAR or WAR)
-  - Additional dependencies (actuator and prometheus are added automatically)
-- After project creation, script automatically adds instrumentation
-
-**If you answer "No":**
-- ❌ **No Spring Boot CLI required**
-- Works with existing projects created by:
-  - Spring Initializr (https://start.spring.io/)
-  - IDE project wizards (IntelliJ IDEA, Eclipse, VS Code)
-  - Manual setup or company templates
-- Script detects existing configuration and adds instrumentation
-- Prompts for file conflicts (overwrite or skip)
-
-##### Step 2: Java Version Detection
-
-**For new projects:**
-- Uses the Java version you specified during project creation
-
-**For existing projects:**
-- Auto-detects Java version from Maven build configuration
-- **Maven detection** checks `pom.xml` for:
-  - `<java.version>17</java.version>`
-  - `<maven.compiler.source>17</maven.compiler.source>`
-  - `<maven.compiler.target>17</maven.compiler.target>`
-- If auto-detection fails, script prompts you to select version (17, 21, or 25)
-
-**Note:** Gradle projects are not currently supported by the automated script. Use manual implementation for Gradle-based projects.
-
-**Supported Java versions:** 17, 21, 25
-
-##### Step 3: Database Configuration
-
-The script asks: **"Do you want to include PostgreSQL database configuration?"**
-
-**If you answer "Yes":**
-- Adds PostgreSQL service to `docker-compose.yaml`
-- Adds postgres-exporter for database metrics collection
-- Includes database connection configuration in `.env`
-- Environment variables for database credentials and connection pool settings
-
-**If you answer "No":**
-- Uses basic template without database services
-- You can add database configuration manually later if needed
-
-##### Step 4: Template Selection & Download
-
-Based on your choices, the script automatically:
-- Selects the appropriate template:
-  - `java-17`, `java-21`, `java-25` (without PostgreSQL)
-  - `java-17-postgres`, `java-21-postgres`, `java-25-postgres` (with PostgreSQL)
-- Downloads template files from GitHub repository
-- Creates temporary directory for downloaded files
-- Validates all required files are present
-
-**Template files downloaded:**
-- `Dockerfile` - Multi-stage build with OpenTelemetry Java Agent
-- `docker-compose.yaml` - Application and optional database services
-- `application.properties` - Spring Boot and Actuator configuration
-- `logback-spring.xml` - Logging with trace correlation
-- `.env.example` - Environment variable template
-
-##### Step 5: File Copy with Conflict Resolution
-
-The script copies configuration files to your project directory.
-
-**For new projects:**
-- All files are copied automatically without prompting
-- No conflict resolution needed (project is new)
-
-**For existing projects:**
-- Script checks each file before copying
-- If file exists, prompts for action:
-  - **[y]es** - Overwrite this file
-  - **[n]o** - Skip this file (keep existing)
-  - **[a]ll** - Overwrite all remaining files without prompting
-- Statistics displayed: files copied, skipped, failed
-
-**Files copied:**
 
 | File | Location | Purpose |
 |------|----------|---------|
@@ -349,17 +210,6 @@ The script copies configuration files to your project directory.
 | `docker-compose.yaml` | `./docker-compose.yaml` | Application services orchestration |
 | `application.properties` | `./src/main/resources/application.properties` | Spring Boot configuration |
 | `logback-spring.xml` | `./src/main/resources/logback-spring.xml` | Logging with trace IDs |
-
-##### Step 6: Environment File Creation
-
-Creates `.env` file from template with essential configuration.
-
-**For new projects:**
-- Automatically creates `.env` without prompting
-
-**For existing projects:**
-- If `.env` exists, prompts: "Overwrite existing .env file?"
-- Recommendation: Review differences before overwriting
 
 **Key environment variables configured:**
 
@@ -383,92 +233,6 @@ POSTGRES_USER=admin
 POSTGRES_PASSWORD=secret
 DB_URL=jdbc:postgresql://postgres:5432/mydatabase
 ```
-
-#### Common Scenarios
-
-##### Scenario A: New Project from Scratch via Script
-
-**Best for:** Greenfield projects, learning, prototyping
-
-**Workflow:**
-1. Ensure Spring Boot CLI is installed: `spring --version`
-2. Run setup script: `bash <(curl -sSL ...)`
-3. Answer "Yes" to "Are you starting a new project?"
-4. Follow interactive prompts for project configuration
-5. Script creates project and adds instrumentation automatically
-6. Navigate to project directory and start: `docker-compose up --build`
-
-**Requirements:** Spring Boot CLI installed
-
-##### Scenario B: Early-Stage Existing Project Instrumentation
-
-**Best for:** Adding observability to early-stage Maven projects created via Spring Initializr or IDE wizards
-
-**⚠️ Important:** This scenario is recommended only for projects in their initial phase where overwriting configuration files is acceptable. For established projects with custom configurations, use [Approach 2: Manual Implementation](#approach-2-manual-implementation-reference) instead.
-
-**Workflow:**
-1. Navigate to your existing Spring Boot project directory
-2. **Verify:** Ensure your project uses Maven (check for `pom.xml`)
-3. **Verify:** Ensure this is an early-stage project where configuration overwrites are acceptable
-4. Run setup script: `bash <(curl -sSL ...)`
-5. Answer "No" to "Are you starting a new project?"
-6. Script detects Java version from existing build files
-7. Choose PostgreSQL configuration (Yes/No)
-8. **Carefully review** file overwrite prompts - choose "No" for files you want to preserve
-9. Update .env with your service name and configuration
-10. Start application: `docker-compose up --build`
-
-**Requirements:**
-- Maven-based project (pom.xml must exist)
-- No Spring Boot CLI needed
-
-**Note:** If your project doesn't have actuator and micrometer-registry-prometheus dependencies, add them to `pom.xml` before running. *Gradle projects are not supported by the automated script - use manual implementation instead.*
-
-##### Scenario C: Spring Initializr + Script for Instrumentation
-
-> **⚠️ Requirement:** Project must use Maven (pom.xml)
-
-**Best for:** Users who prefer Spring Initializr UI but want automated instrumentation
-
-**Workflow:**
-1. Create project at https://start.spring.io/
-   - Add dependencies: Spring Boot Actuator, Prometheus
-   - Download and extract the project
-2. Navigate to extracted project directory
-3. Run setup script: `bash <(curl -sSL ...)`
-4. Answer "No" to "Are you starting a new project?"
-5. Script adds Docker configuration and logging setup
-6. Update .env with your configuration
-7. Start application: `docker-compose up --build`
-
-**Requirements:** None (no Spring Boot CLI needed)
-
-**Advantages:**
-- Visual dependency selection in Spring Initializr
-- Automated Docker and logging configuration via script
-- Best of both worlds
-
-##### Scenario D: IDE-Generated Project + Script
-
-> **⚠️ Requirement:** Project must use Maven (pom.xml). If using Gradle, use manual implementation.
-
-**Best for:** Developers using IntelliJ IDEA, Eclipse, or VS Code
-
-**Workflow:**
-1. Create Spring Boot project using IDE wizard
-   - Select Maven as build tool
-   - Ensure you add: Spring Boot Actuator, Micrometer Prometheus Registry
-2. Navigate to project directory in terminal
-3. Run setup script: `bash <(curl -sSL ...)`
-4. Answer "No" to "Are you starting a new project?"
-5. Script detects configuration and adds instrumentation
-6. Review file conflicts and choose overwrite/skip as needed
-7. Update .env with your configuration
-8. Start application: `docker-compose up --build`
-
-**Requirements:**
-- Maven-based project (pom.xml must exist)
-- No Spring Boot CLI needed
 
 #### What the Script Configures
 
