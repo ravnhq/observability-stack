@@ -192,6 +192,7 @@ download_src() {
         "grafana/provisioning/datasources/datasources.yaml"
         "grafana/provisioning/dashboards/dashboards.yaml"
         "grafana/dashboards/spring-boot-dashboard.json"
+        "grafana/dashboards/node-exporter-use-dashboard.json"
     )
     
     local downloaded=0
