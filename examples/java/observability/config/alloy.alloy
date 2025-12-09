@@ -93,6 +93,23 @@ prometheus.scrape "application" {
   metrics_path    = env("SCRAPE_APP_METRICS_PATH")
 }
 
+// Scrape job for Node Exporter metrics
+prometheus.scrape "node_exporter" {
+  targets = [
+    {
+      "__address__" = env("SCRAPE_NODE_EXPORTER_TARGET"),
+      "job"         = env("SCRAPE_NODE_EXPORTER_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = "node-exporter",
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = env("SCRAPE_NODE_EXPORTER_METRICS_PATH")
+}
+
 // Optional: Enable live debugging
 /*
 livedebugging {

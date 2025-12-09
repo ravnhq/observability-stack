@@ -257,6 +257,9 @@ services:
       - SCRAPE_APP_TARGET=${SCRAPE_APP_TARGET:-host.docker.internal:8081}
       - SCRAPE_APP_JOB=${SCRAPE_APP_JOB:-userdemo-agent-micrometer}
       - SCRAPE_APP_METRICS_PATH=${SCRAPE_APP_METRICS_PATH:-/actuator/prometheus}
+      - SCRAPE_NODE_EXPORTER_TARGET=${SCRAPE_NODE_EXPORTER_TARGET:-host.docker.internal:9100}
+      - SCRAPE_NODE_EXPORTER_JOB=${SCRAPE_NODE_EXPORTER_JOB:-node}
+      - SCRAPE_NODE_EXPORTER_METRICS_PATH=${SCRAPE_NODE_EXPORTER_METRICS_PATH:-/metrics}
       - ENVIRONMENT=${ENVIRONMENT:-local}
     depends_on:
       - mimir
@@ -284,11 +287,12 @@ services:
       - GRAFANA_DS_MIMIR_URL=${GRAFANA_DS_MIMIR_URL:-http://mimir:9009/prometheus}
       - GRAFANA_DS_LOKI_URL=${GRAFANA_DS_LOKI_URL:-http://loki:3100}
       - GRAFANA_DS_TEMPO_URL=${GRAFANA_DS_TEMPO_URL:-http://tempo:3200}
-      - GRAFANA_LOKI_TRACE_ID_REGEX=${GRAFANA_LOKI_TRACE_ID_REGEX:-"\"trace_id\":\"(\\w+)\""}
+      - GRAFANA_LOKI_TRACE_ID_REGEX=${GRAFANA_LOKI_TRACE_ID_REGEX:-"\"traceid\":\"(\\w+)\""}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./data/grafana:/var/lib/grafana
+      - ./config/grafana.ini:/etc/grafana/grafana.ini:ro
     networks:
       - observability
     depends_on:

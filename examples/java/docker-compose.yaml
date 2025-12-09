@@ -85,6 +85,20 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro'
+    networks:
+      - app-network
+
 volumes:
   postgres-data:
     driver: local
