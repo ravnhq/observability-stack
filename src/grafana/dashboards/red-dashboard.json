@@ -42,6 +42,360 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 0,
+        "y": 1
+      },
+      "id": 19,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "editorMode": "builder",
+          "expr": "process_uptime_seconds",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "metric": "",
+          "range": true,
+          "refId": "A",
+          "step": 14400
+        }
+      ],
+      "title": "App Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PAE45454D0EDB9216"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 3,
+        "y": 1
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\",uri!=\"/actuator/prometheus\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{method}} {{uri}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "24h",
+      "title": "Requests Count",
+      "transformations": [
+        {
+          "id": "seriesToRows",
+          "options": {}
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "Metric"
+            ]
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PAE45454D0EDB9216"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "displayMode": "lcd",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum by(uri)(http_server_requests_seconds_sum{instance=\"$instance\"}) / sum by(uri)(http_server_requests_seconds_count{instance=\"$instance\"})",
+          "interval": "",
+          "legendFormat": "{{method}} {{uri}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests Average Duration",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PAE45454D0EDB9216"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 2,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "index": 0,
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 0,
+        "y": 5
+      },
+      "id": 20,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "editorMode": "code",
+          "expr": "pg_up",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "metric": "",
+          "range": true,
+          "refId": "A",
+          "step": 14400
+        }
+      ],
+      "title": "DB Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PAE45454D0EDB9216"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "palette-classic"
           },
           "custom": {
@@ -146,7 +500,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 9
       },
       "id": 6,
       "options": {
@@ -171,7 +525,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\"}[1m]))",
+          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{instance=\"$instance\"}[1m]))",
           "interval": "",
           "legendFormat": "{{uri}}",
           "range": true,
@@ -221,7 +575,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 9
       },
       "hideTimeOverride": false,
       "id": 18,
@@ -251,7 +605,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", outcome=\"SERVER_ERROR\"})",
+          "expr": "sum(http_server_requests_seconds_count{instance=\"$instance\", outcome=\"SERVER_ERROR\"})",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -261,84 +615,6 @@
       "timeFrom": "24h",
       "title": "Total Exceptions",
       "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PAE45454D0EDB9216"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 5,
-      "options": {
-        "displayMode": "lcd",
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "maxVizHeight": 300,
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PAE45454D0EDB9216"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum by(uri)(http_server_requests_seconds_sum{application=\"$application\", instance=\"$instance\"}) / sum by(uri)(http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\"})",
-          "interval": "",
-          "legendFormat": "{{method}} {{uri}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Requests Average Duration",
-      "type": "bargauge"
     },
     {
       "collapsed": true,
@@ -412,7 +688,32 @@
               },
               "unit": "percentunit"
             },
-            "overrides": []
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "/api/{id}"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": true,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 7,
@@ -443,7 +744,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", status=~\"2.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
+              "expr": "sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", status=~\"2.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
               "interval": "",
               "legendFormat": "{{path}}",
               "range": true,
@@ -565,7 +866,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 69
+            "y": 25
           },
           "id": 10,
           "options": {
@@ -589,7 +890,7 @@
                 "uid": "PAE45454D0EDB9216"
               },
               "editorMode": "code",
-              "expr": "irate(http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", uri!~\".*(prometheus|health).*\"}[$__rate_interval])",
+              "expr": "irate(http_server_requests_seconds_count{instance=\"$instance\", uri!~\".*(prometheus|health).*\"}[$__rate_interval])",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{method}} [{{status}}] - {{uri}}",
@@ -680,7 +981,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 34
           },
           "id": 2,
           "options": {
@@ -703,7 +1004,7 @@
             {
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", status!~\"2.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
+              "expr": "sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", status!~\"2.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
               "legendFormat": "{{method}} {{status}} - {{uri}}",
               "range": true,
               "refId": "A"
@@ -805,7 +1106,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 40
           },
           "id": 13,
           "options": {
@@ -830,7 +1131,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", status=~\"4.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
+              "expr": "sum by(uri) (http_server_requests_seconds_count{ instance=\"$instance\", status=~\"4.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{ instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -908,7 +1209,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 40
           },
           "id": 12,
           "options": {
@@ -933,7 +1234,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", status=~\"5.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
+              "expr": "sum by(uri) (http_server_requests_seconds_count{ instance=\"$instance\", status=~\"5.*\", uri!=\"/actuator/prometheus\"}) / sum by(uri) (http_server_requests_seconds_count{ instance=\"$instance\", uri!=\"/actuator/prometheus\"})",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1023,7 +1324,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 49
           },
           "id": 11,
           "options": {
@@ -1051,7 +1352,7 @@
                 "uid": "PAE45454D0EDB9216"
               },
               "editorMode": "code",
-              "expr": "irate(http_server_requests_seconds_sum{instance=\"$instance\", application=\"$application\", exception=\"none\", uri!~\".*(prometheus|health).*\"}[$__rate_interval]) / irate(http_server_requests_seconds_count{instance=\"$instance\", application=\"$application\", exception=\"none\",uri!~\".*(prometheus|health).*\"}[$__rate_interval])",
+              "expr": "irate(http_server_requests_seconds_sum{instance=\"$instance\",  exception=\"none\", uri!~\".*(prometheus|health).*\"}[$__rate_interval]) / irate(http_server_requests_seconds_count{instance=\"$instance\", exception=\"none\",uri!~\".*(prometheus|health).*\"}[$__rate_interval])",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{method}} [{{status}}] - {{uri}}",
@@ -1128,7 +1429,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 57
           },
           "id": 16,
           "options": {
@@ -1153,7 +1454,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "histogram_quantile(.99,sum(rate(http_server_requests_seconds_bucket{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
+              "expr": "histogram_quantile(.99,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1229,7 +1530,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 57
           },
           "id": 17,
           "options": {
@@ -1254,7 +1555,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "histogram_quantile(.95,sum(rate(http_server_requests_seconds_bucket{application=\"$application\", instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
+              "expr": "histogram_quantile(.95,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1274,24 +1575,6 @@
   "tags": [],
   "templating": {
     "list": [
-      {
-        "current": {
-          "text": "",
-          "value": ""
-        },
-        "definition": "label_values(application)",
-        "label": "Application Name",
-        "name": "application",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(application)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "type": "query"
-      },
       {
         "current": {
           "text": "host.docker.internal:8080",
@@ -1319,6 +1602,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "RED Dashboard",
-  "uid": "ad5zp68",
-  "version": 88
+  "uid": "ad5zp69",
+  "version": 20
 }

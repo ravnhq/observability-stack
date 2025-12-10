@@ -192,7 +192,7 @@ download_src() {
         "grafana/provisioning/datasources/datasources.yaml"
         "grafana/provisioning/dashboards/dashboards.yaml"
         "grafana/dashboards/red-dashboard.json"
-        "grafana/dashboards/node-exporter-use-dashboard.json"
+        "grafana/dashboards/use-dashboard.json"
     )
     
     local downloaded=0
