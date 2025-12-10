@@ -191,7 +191,7 @@ download_src() {
         "grafana/provisioning/alerting/node-exporter-rules.yaml"
         "grafana/provisioning/datasources/datasources.yaml"
         "grafana/provisioning/dashboards/dashboards.yaml"
-        "grafana/dashboards/spring-boot-dashboard.json"
+        "grafana/dashboards/red-dashboard.json"
         "grafana/dashboards/node-exporter-use-dashboard.json"
     )
     
