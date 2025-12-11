@@ -189,6 +189,7 @@ download_src() {
         "config/mimir-runtime.yaml"
         "config/tempo.yaml"
         "grafana/provisioning/alerting/node-exporter-rules.yaml"
+        "grafana/provisioning/alerting/contact-points.yaml"
         "grafana/provisioning/datasources/datasources.yaml"
         "grafana/provisioning/dashboards/dashboards.yaml"
         "grafana/dashboards/red-dashboard.json"

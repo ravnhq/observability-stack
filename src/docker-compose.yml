@@ -288,6 +288,9 @@ services:
       - GRAFANA_DS_LOKI_URL=${GRAFANA_DS_LOKI_URL:-http://loki:3100}
       - GRAFANA_DS_TEMPO_URL=${GRAFANA_DS_TEMPO_URL:-http://tempo:3200}
       - GRAFANA_LOKI_TRACE_ID_REGEX=${GRAFANA_LOKI_TRACE_ID_REGEX:-"\"traceid\":\"(\\w+)\""}
+
+      # Alerting
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
