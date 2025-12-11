@@ -80,8 +80,8 @@ if [ ! -f "$PACKAGE_JSON" ]; then
 fi
 
 ensure_local_assets() {
-  local repo_template_dir="${SCRIPT_DIR}/lgtm"
-  local repo_stack_dir="${SCRIPT_DIR}/../nextjs/observability"
+  local repo_template_dir="${SCRIPT_DIR}/templates"
+  local repo_stack_dir="${SCRIPT_DIR}/observability"
 
   if [ -d "$repo_template_dir" ] && [ -d "$repo_stack_dir" ]; then
     TEMPLATE_ROOT="$repo_template_dir"
@@ -111,8 +111,8 @@ ensure_local_assets() {
     rm -rf "$tmp_dir"
   fi
 
-  TEMPLATE_ROOT="${archive_root}/examples/nodejs/setup/lgtm"
-  STACK_TEMPLATE_DIR="${archive_root}/examples/nodejs/nextjs/observability"
+  TEMPLATE_ROOT="${archive_root}/examples/nodejs/setup/templates"
+  STACK_TEMPLATE_DIR="${archive_root}/examples/nodejs/setup/observability"
 
   if [ ! -d "$TEMPLATE_ROOT" ] || [ ! -d "$STACK_TEMPLATE_DIR" ]; then
     echo "❌ Failed to locate templates in downloaded archive"
