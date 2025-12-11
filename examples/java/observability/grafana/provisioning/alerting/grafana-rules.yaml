@@ -1,8 +1,8 @@
 apiVersion: 1
 groups:
     - orgId: 1
-      name: node-exporter.rules
-      folder: node
+      name: node-exporter-rules
+      folder: Grafana Rules
       interval: 1m
       rules:
         - uid: af6kzi2yianlsc
@@ -52,11 +52,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_num_cpu:sum
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: af6kztqoj2yv4e
           title: instance:node_cpu_utilisation:rate1m
           data:
@@ -102,11 +105,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_cpu_utilisation:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: df6l05mz8bke8a
           title: instance:node_load1_per_cpu:ratio
           data:
@@ -149,11 +155,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_load1_per_cpu:ratio
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: df6l08nhsiscgf
           title: instance:node_memory_utilisation:ratio
           data:
@@ -201,11 +210,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_memory_utilisation:ratio
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: ff6l0baipyo74a
           title: instance:node_vmstat_pgmajfault:rate1m
           data:
@@ -248,11 +260,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_vmstat_pgmajfault:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: ff6l0ekjt8n40b
           title: instance_device:node_disk_io_time_seconds:rate1m
           data:
@@ -295,11 +310,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance_device:node_disk_io_time_seconds:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: af6l0grq9vc3ka
           title: instance_device:node_disk_io_time_weighted_seconds:rate1m
           data:
@@ -342,11 +360,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance_device:node_disk_io_time_weighted_seconds:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: ff6l0imxcjbb4c
           title: instance:node_network_receive_bytes_excluding_lo:rate1m
           data:
@@ -392,11 +413,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_network_receive_bytes_excluding_lo:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: ff6l0knd61340e
           title: instance:node_network_transmit_bytes_excluding_lo:rate1m
           data:
@@ -442,11 +466,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_network_transmit_bytes_excluding_lo:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: ff6l0ms2csf7kc
           title: instance:node_network_receive_drop_excluding_lo:rate1m
           data:
@@ -492,11 +519,14 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_network_receive_drop_excluding_lo:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
         - uid: af6l0oy66hnnkb
           title: instance:node_network_transmit_drop_excluding_lo:rate1m
           data:
@@ -542,8 +572,70 @@ groups:
                 reducer: last
                 refId: B
                 type: reduce
+          dashboardUid: ""
+          panelId: 0
+          noDataState: NoData
+          execErrState: Alerting
           isPaused: false
           record:
             metric: instance:node_network_transmit_drop_excluding_lo:rate1m
             from: B
-            targetDatasourceUid: PAE45454D0EDB9216
+    - orgId: 1
+      name: ravn-evaluation-group
+      folder: Grafana Rules
+      interval: 30s
+      rules:
+        - uid: ef6slmckhmwowb
+          title: db-status-down
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: PAE45454D0EDB9216
+              model:
+                editorMode: builder
+                expr: pg_up
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                        type: ne
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: ad5zp69
+          panelId: 12
+          noDataState: KeepLast
+          execErrState: KeepLast
+          for: 30s
+          annotations:
+            __dashboardUid__: ad5zp69
+            __panelId__: "12"
+          isPaused: false
+          notification_settings:
+            receiver: slack-alerts
