@@ -37,6 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SRC_DIR="${PROJECT_ROOT}"
 TEMPLATE_DIR="${SCRIPT_DIR}/templates/nextjs"
+DOCKER_COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yaml"
 INSTRUMENTATION_FILE="${SRC_DIR}/instrumentation.ts"
 NODE_OTEL_FILE="${SRC_DIR}/otel.ts"
 NEXT_CONFIG_FILE="${PROJECT_ROOT}/next.config.ts"
@@ -120,6 +121,27 @@ replace_placeholder() {
   mv "$file.tmp" "$file"
 }
 
+launch_observability_stack() {
+  if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then
+    echo "⚠️  docker-compose.yaml not found at $DOCKER_COMPOSE_FILE; skipping launch"
+    return
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "⚠️  docker CLI not found; skipping observability stack launch"
+    return
+  fi
+
+  pushd "$SCRIPT_DIR" >/dev/null
+  echo "🚀 Launching observability stack with docker compose..."
+  if docker compose -f "$DOCKER_COMPOSE_FILE" up -d; then
+    echo "✅ Observability stack is running"
+  else
+    echo "❌ Failed to start observability stack"
+  fi
+  popd >/dev/null
+}
+
 echo "🛠️  Writing instrumentation files into $SRC_DIR"
 backup_file "$INSTRUMENTATION_FILE"
 backup_file "$NODE_OTEL_FILE"
@@ -149,3 +171,10 @@ fi
 echo "   SERVICE_VERSION=${SERVICE_VERSION}"
 
 echo "You can override these values via environment variables when running Next.js or Docker Compose."
+
+read -r -p $'Would you like to start the observability docker-compose stack now? [y/N]: ' START_STACK
+if [[ "$START_STACK" =~ ^[Yy]$ ]]; then
+  launch_observability_stack
+else
+  echo "ℹ️  Skipping observability stack launch"
+fi
