@@ -4,6 +4,10 @@ set -euo pipefail
 DEFAULT_OTLP_URL="http://localhost:4318"
 DEFAULT_SERVICE_VERSION="1.0.0"
 DEFAULT_PYROSCOPE_URL="http://localhost:4040"
+ASSET_BRANCH="nodejs-poc"
+ASSET_ARCHIVE_URL="https://github.com/ravnhq/observability-stack/archive/refs/heads/${ASSET_BRANCH}.tar.gz"
+ASSET_CACHE_DIR="${HOME}/.cache/ravn-observability/${ASSET_BRANCH}"
+ASSET_ARCHIVE_ROOT="observability-stack-${ASSET_BRANCH}"
 
 COMMON_PACKAGES=(
   "@opentelemetry/api"
@@ -63,8 +67,11 @@ NEXT_PACKAGES=(
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_ROOT="${SCRIPT_DIR}/templates/lgtm"
 PROJECT_ROOT="$PWD"
+TEMPLATE_ROOT=""
+STACK_TEMPLATE_DIR=""
+STACK_TARGET_DIR="${PROJECT_ROOT}/observability"
+STACK_COMPOSE_FILE="${STACK_TARGET_DIR}/docker-compose.yaml"
 PACKAGE_JSON="${PROJECT_ROOT}/package.json"
 
 if [ ! -f "$PACKAGE_JSON" ]; then
@@ -72,10 +79,46 @@ if [ ! -f "$PACKAGE_JSON" ]; then
   exit 1
 fi
 
-if [ ! -d "$TEMPLATE_ROOT" ]; then
-  echo "❌ Template directory not found at ${TEMPLATE_ROOT}"
-  exit 1
-fi
+ensure_local_assets() {
+  local repo_template_dir="${SCRIPT_DIR}/lgtm"
+  local repo_stack_dir="${SCRIPT_DIR}/../nextjs/observability"
+
+  if [ -d "$repo_template_dir" ] && [ -d "$repo_stack_dir" ]; then
+    TEMPLATE_ROOT="$repo_template_dir"
+    STACK_TEMPLATE_DIR="$repo_stack_dir"
+    return
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "❌ curl is required to download LGTM templates from GitHub"
+    exit 1
+  fi
+
+  mkdir -p "$ASSET_CACHE_DIR"
+  local archive_root="${ASSET_CACHE_DIR}/${ASSET_ARCHIVE_ROOT}"
+
+  if [ ! -d "$archive_root" ]; then
+    echo "⬇️  Fetching templates from ${ASSET_BRANCH} branch..."
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    local archive_path="${tmp_dir}/observability-stack.tar.gz"
+    if ! curl -fsSL "$ASSET_ARCHIVE_URL" -o "$archive_path"; then
+      echo "❌ Failed to download template archive from $ASSET_ARCHIVE_URL"
+      rm -rf "$tmp_dir"
+      exit 1
+    fi
+    tar -xzf "$archive_path" -C "$ASSET_CACHE_DIR"
+    rm -rf "$tmp_dir"
+  fi
+
+  TEMPLATE_ROOT="${archive_root}/examples/nodejs/setup/lgtm"
+  STACK_TEMPLATE_DIR="${archive_root}/examples/nodejs/nextjs/observability"
+
+  if [ ! -d "$TEMPLATE_ROOT" ] || [ ! -d "$STACK_TEMPLATE_DIR" ]; then
+    echo "❌ Failed to locate templates in downloaded archive"
+    exit 1
+  fi
+}
 
 FRAMEWORK=""
 FRAMEWORK_LABEL=""
@@ -190,6 +233,57 @@ prepend_block_if_missing() {
   echo "✅ Added instrumentation bootstrap to $(basename "$file")"
 }
 
+copy_observability_stack() {
+  if [ ! -d "$STACK_TEMPLATE_DIR" ]; then
+    echo "⚠️  Observability stack template not found at $STACK_TEMPLATE_DIR"
+    return 1
+  fi
+
+  local template_abs
+  local target_abs
+  template_abs="$(cd "$STACK_TEMPLATE_DIR" && pwd)"
+  target_abs="$(cd "$PROJECT_ROOT" && pwd)/observability"
+
+  if [ "$template_abs" = "$target_abs" ]; then
+    echo "ℹ️  Observability stack already present in this project"
+    return 0
+  fi
+
+  if [ -d "$STACK_TARGET_DIR" ]; then
+    local backup
+    backup="${STACK_TARGET_DIR}.bak.$(date +%s)"
+    mv "$STACK_TARGET_DIR" "$backup"
+    echo "📦 Existing observability directory backed up to $(basename "$backup")"
+  fi
+
+  mkdir -p "$(dirname "$STACK_TARGET_DIR")"
+  cp -R "$STACK_TEMPLATE_DIR" "$STACK_TARGET_DIR"
+  echo "✅ Copied LGTM observability stack to $STACK_TARGET_DIR"
+  return 0
+}
+
+launch_observability_stack() {
+  if [ ! -f "$STACK_COMPOSE_FILE" ]; then
+    echo "⚠️  docker-compose.yaml not found at $STACK_COMPOSE_FILE"
+    return
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "⚠️  docker CLI not available; cannot start observability stack"
+    return
+  fi
+
+  pushd "$STACK_TARGET_DIR" >/dev/null
+  echo "🚀 Starting LGTM observability stack via docker compose"
+  if docker compose up -d; then
+    echo "✅ Observability stack is running"
+  else
+    echo "❌ Failed to start observability stack"
+  fi
+  popd >/dev/null
+}
+
+ensure_local_assets
 select_framework
 
 if [ "$FRAMEWORK" != "nextjs" ] && [ ! -d "$SRC_DIR" ]; then
@@ -310,6 +404,33 @@ else
   SUMMARY_LINES+=("   - instrumentation.ts: $INSTRUMENTATION_FILE")
   SUMMARY_LINES+=("   - otel.ts: $NODE_OTEL_FILE")
   SUMMARY_LINES+=("   - next.config.ts: $NEXT_CONFIG_FILE")
+fi
+
+STACK_TARGET_EXISTS=false
+if [ -d "$STACK_TARGET_DIR" ]; then
+  STACK_TARGET_EXISTS=true
+fi
+
+read -r -p $'Copy LGTM observability stack assets into ./observability? [y/N]: ' COPY_STACK
+if [[ "$COPY_STACK" =~ ^[Yy]$ ]]; then
+  if copy_observability_stack; then
+    STACK_TARGET_EXISTS=true
+  fi
+fi
+
+if [ "$STACK_TARGET_EXISTS" = true ]; then
+  SUMMARY_LINES+=("   - Observability stack directory: $STACK_TARGET_DIR")
+fi
+
+if [ -f "$STACK_COMPOSE_FILE" ]; then
+  read -r -p $'Would you like to start the LGTM observability stack now? [y/N]: ' START_STACK
+  if [[ "$START_STACK" =~ ^[Yy]$ ]]; then
+    launch_observability_stack
+  else
+    echo "ℹ️  Skipping observability stack launch"
+  fi
+else
+  echo "ℹ️  No docker-compose.yaml at $STACK_COMPOSE_FILE — skipping stack launch prompt"
 fi
 
 echo ""
