@@ -275,13 +275,18 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "${GRAFANA_PORT:-3030}:${GRAFANA_INTERNAL_PORT:-3000}"
+      - "${GRAFANA_PORT:-3030}:${GRAFANA_PORT:-3030}"
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=${GF_AUTH_ANONYMOUS_ORG_ROLE:-Admin}
       - GF_USERS_DEFAULT_THEME=dark
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+
+      # Server Configuration
+      - GRAFANA_PROTOCOL=${GRAFANA_PROTOCOL:-http}
+      - GRAFANA_DOMAIN=${GRAFANA_DOMAIN:-localhost}
+      - GRAFANA_PORT=${GRAFANA_PORT:-3030}
 
       # Datasource URLs (configurable for external LGTM backends)
       - GRAFANA_DS_MIMIR_URL=${GRAFANA_DS_MIMIR_URL:-http://mimir:9009/prometheus}
