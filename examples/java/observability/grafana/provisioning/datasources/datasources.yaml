@@ -13,6 +13,9 @@ datasources:
     jsonData:
       httpMethod: POST
       timeInterval: 15s
+      exemplarTraceIdDestinations:
+        - datasourceUid: Tempo
+          name: trace_id
     editable: true
 
   # Loki for logs

@@ -369,12 +369,17 @@ Add the Spring Boot Actuator and Micrometer Prometheus Registry dependencies to 
     <groupId>io.micrometer</groupId>
     <artifactId>micrometer-registry-prometheus</artifactId>
 </dependency>
+<dependency>
+	<groupId>io.micrometer</groupId>
+	<artifactId>micrometer-tracing-bridge-otel</artifactId>
+</dependency>
 ```
 
 **Gradle** (`build.gradle`):
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-actuator'
 implementation 'io.micrometer:micrometer-registry-prometheus'
+implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 ```
 
 #### 2. Update application.properties
@@ -1083,6 +1088,12 @@ docker-compose exec app ps aux | grep javaagent
 <dependency>
     <groupId>io.micrometer</groupId>
     <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
+
+
+<dependency>
+	<groupId>io.micrometer</groupId>
+	<artifactId>micrometer-tracing-bridge-otel</artifactId>
 </dependency>
 ```
 
