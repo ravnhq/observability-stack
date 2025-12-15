@@ -111,8 +111,8 @@ ensure_local_assets() {
     rm -rf "$tmp_dir"
   fi
 
-  TEMPLATE_ROOT="${archive_root}/examples/nodejs/setup/templates"
-  STACK_TEMPLATE_DIR="${archive_root}/examples/nodejs/setup/observability"
+  TEMPLATE_ROOT="${archive_root}/src/nodejs/setup/templates"
+  STACK_TEMPLATE_DIR="${archive_root}/src/nodejs/setup/observability"
 
   if [ ! -d "$TEMPLATE_ROOT" ] || [ ! -d "$STACK_TEMPLATE_DIR" ]; then
     echo "❌ Failed to locate templates in downloaded archive"
