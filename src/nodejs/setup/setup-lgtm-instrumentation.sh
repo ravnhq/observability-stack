@@ -9,6 +9,51 @@ ASSET_ARCHIVE_URL="https://github.com/ravnhq/observability-stack/archive/refs/he
 ASSET_CACHE_DIR="${HOME}/.cache/ravn-observability/${ASSET_BRANCH}"
 ASSET_ARCHIVE_ROOT="observability-stack-${ASSET_BRANCH}"
 
+download_asset_archive() {
+  local archive_root="$1"
+
+  if [ -d "$archive_root" ]; then
+    return 0
+  fi
+
+  echo "⬇️  Fetching templates from ${ASSET_BRANCH} branch..."
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  local archive_path="${tmp_dir}/observability-stack.tar.gz"
+  if ! curl -fsSL "$ASSET_ARCHIVE_URL" -o "$archive_path"; then
+    echo "❌ Failed to download template archive from $ASSET_ARCHIVE_URL"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+  if ! tar -xzf "$archive_path" -C "$ASSET_CACHE_DIR"; then
+    echo "❌ Failed to extract template archive"
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+  rm -rf "$tmp_dir"
+  return 0
+}
+
+locate_templates_in_archive() {
+  local archive_root="$1"
+  local candidate_roots=(
+    "${archive_root}/src/nodejs/setup"
+    "${archive_root}/examples/nodejs/setup"
+  )
+
+  for candidate in "${candidate_roots[@]}"; do
+    local candidate_templates="${candidate}/templates"
+    local candidate_stack="${candidate}/observability"
+    if [ -d "$candidate_templates" ] && [ -d "$candidate_stack" ]; then
+      TEMPLATE_ROOT="$candidate_templates"
+      STACK_TEMPLATE_DIR="$candidate_stack"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 COMMON_PACKAGES=(
   "@opentelemetry/api"
   "@opentelemetry/sdk-node"
@@ -97,34 +142,24 @@ ensure_local_assets() {
   mkdir -p "$ASSET_CACHE_DIR"
   local archive_root="${ASSET_CACHE_DIR}/${ASSET_ARCHIVE_ROOT}"
 
-  if [ ! -d "$archive_root" ]; then
-    echo "⬇️  Fetching templates from ${ASSET_BRANCH} branch..."
-    local tmp_dir
-    tmp_dir="$(mktemp -d)"
-    local archive_path="${tmp_dir}/observability-stack.tar.gz"
-    if ! curl -fsSL "$ASSET_ARCHIVE_URL" -o "$archive_path"; then
-      echo "❌ Failed to download template archive from $ASSET_ARCHIVE_URL"
-      rm -rf "$tmp_dir"
-      exit 1
-    fi
-    tar -xzf "$archive_path" -C "$ASSET_CACHE_DIR"
-    rm -rf "$tmp_dir"
+  if ! download_asset_archive "$archive_root"; then
+    exit 1
   fi
 
-  local candidate_roots=(
-    "${archive_root}/src/nodejs/setup"
-    "${archive_root}/examples/nodejs/setup"
-  )
+  if locate_templates_in_archive "$archive_root"; then
+    return
+  fi
 
-  for candidate in "${candidate_roots[@]}"; do
-    local candidate_templates="${candidate}/templates"
-    local candidate_stack="${candidate}/observability"
-    if [ -d "$candidate_templates" ] && [ -d "$candidate_stack" ]; then
-      TEMPLATE_ROOT="$candidate_templates"
-      STACK_TEMPLATE_DIR="$candidate_stack"
-      return
-    fi
-  done
+  echo "♻️  Cached archive did not contain templates; refreshing..."
+  rm -rf "$archive_root"
+
+  if ! download_asset_archive "$archive_root"; then
+    exit 1
+  fi
+
+  if locate_templates_in_archive "$archive_root"; then
+    return
+  fi
 
   echo "❌ Failed to locate templates in downloaded archive"
   exit 1
