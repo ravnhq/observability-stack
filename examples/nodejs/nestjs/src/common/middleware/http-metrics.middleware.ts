@@ -1,13 +1,15 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { MetricsService } from '../services/metrics.service';
+import * as promClient from 'prom-client';
+import { trace } from '@opentelemetry/api';
 
 @Injectable()
 export class HttpMetricsMiddleware implements NestMiddleware {
   // Endpoints to exclude from metrics collection
   private readonly excludedPaths = ['/metrics', '/health'];
 
-  constructor(private readonly metricsService: MetricsService) {}
+  constructor(private readonly metricsService: MetricsService) { }
 
   use(req: Request, res: Response, next: NextFunction) {
     // Check if this path should be excluded
@@ -29,12 +31,21 @@ export class HttpMetricsMiddleware implements NestMiddleware {
       const outcome = this.determineOutcome(res.statusCode);
       const exception = this.extractException(res);
       const error = this.extractError(res);
+      const { traceId, spanId } = this.extractTraceContext(req);
 
-      // Record metric
+      // Record histogram metric
       this.metricsService
         .getHttpRequestHistogram()
-        .labels(method, status, uri, outcome, exception, error)
-        .observe(duration);
+        .observe(
+          {
+            value: duration,
+            labels: { method: method, status: status, uri: uri, outcome: outcome, exception: exception, error: error },
+            exemplarLabels: {
+              trace_id: traceId,
+              span_id: spanId,
+            },
+          }
+        );
     });
 
     next();
@@ -154,5 +165,32 @@ export class HttpMetricsMiddleware implements NestMiddleware {
     // For application errors, we use 'none' to avoid cardinality explosion
     // The error label is reserved for metrics collection/instrumentation errors
     return 'none';
+  }
+
+  /**
+   * Extract trace ID and span ID from the active OpenTelemetry span context.
+   * Falls back to none if no active span is available.
+   */
+  private extractTraceContext(req: Request): { traceId: string; spanId: string } {
+    // Try to get the active span from OpenTelemetry context
+    const activeSpan = trace.getActiveSpan();
+
+    if (activeSpan) {
+      const spanContext = activeSpan.spanContext();
+
+      // Validate that we have a valid span context
+      if (spanContext && spanContext.traceId && spanContext.spanId) {
+        return {
+          traceId: spanContext.traceId,
+          spanId: spanContext.spanId,
+        };
+      }
+    }
+
+    // Fallback to none if no active span is available
+    const traceId = 'none';
+    const spanId = 'none';
+
+    return { traceId, spanId };
   }
 }
