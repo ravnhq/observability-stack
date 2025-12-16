@@ -121,8 +121,8 @@
             "type": "prometheus",
             "uid": "PAE45454D0EDB9216"
           },
-          "editorMode": "builder",
-          "expr": "process_uptime_seconds",
+          "editorMode": "code",
+          "expr": "time() - process_start_time_seconds{instance=\"$instance\"}",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "",
@@ -1555,5 +1555,5 @@
   "timezone": "browser",
   "title": "RED Dashboard",
   "uid": "ad5zp69",
-  "version": 1
+  "version": 2
 }
