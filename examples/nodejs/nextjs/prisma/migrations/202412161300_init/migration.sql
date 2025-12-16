@@ -1,0 +1,13 @@
+-- CreateEnum
+CREATE TYPE "TaskStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'DONE');
+
+-- CreateTable
+CREATE TABLE "tasks" (
+    "id" SERIAL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "date" TIMESTAMPTZ NOT NULL,
+    "status" "TaskStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

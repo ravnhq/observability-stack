@@ -29,6 +29,7 @@ const serverExternalPackages = [
 const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages,
+  turbopack: {},
   webpack: (config, { isServer }) => {
     if (isServer) {
       const forcedExternals = new Set(serverExternalPackages);

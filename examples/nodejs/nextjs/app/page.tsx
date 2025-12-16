@@ -1,65 +1,75 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+const statusColors: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-900',
+  IN_PROGRESS: 'bg-blue-100 text-blue-900',
+  DONE: 'bg-green-100 text-green-900',
+};
+
+async function getTasks() {
+  try {
+    return await prisma.task.findMany({ orderBy: { createdAt: 'desc' } });
+  } catch (error) {
+    console.error('[tasks] Failed to load tasks', error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  const tasks = await getTasks();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-10 bg-white px-6 py-12 font-sans text-zinc-900">
+      <header className="space-y-2">
+        <p className="text-sm uppercase tracking-wide text-zinc-500">Next.js + Prisma</p>
+        <h1 className="text-4xl font-semibold">Tasks dashboard</h1>
+        <p className="text-base text-zinc-600">
+          This demo uses a PostgreSQL database via Prisma Client and exposes CRUD endpoints under{' '}
+          <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-sm">/api/tasks</code>.
+        </p>
+      </header>
+
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-medium">Recent tasks</h2>
+          <Link className="text-sm font-medium text-blue-600" href="https://www.postman.com/" target="_blank">
+            Open with your API client →
+          </Link>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <ol className="mt-6 space-y-4">
+          {tasks.length === 0 && <p className="text-sm text-zinc-500">Run POST /api/tasks to add your first task.</p>}
+          {tasks.map((task) => (
+            <li key={task.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">{task.name}</h3>
+                  {task.description && <p className="text-sm text-zinc-500">{task.description}</p>}
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColors[task.status] ?? 'bg-zinc-100 text-zinc-700'}`}>
+                  {task.status.replace('_', ' ')}
+                </span>
+              </div>
+              <p className="mt-3 text-sm text-zinc-600">
+                Target date: {new Date(task.date).toLocaleDateString()} · Created {new Date(task.createdAt).toLocaleString()}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="rounded-2xl border border-dashed border-zinc-300 p-6">
+        <h2 className="text-lg font-semibold">Quick API reference</h2>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-zinc-600">
+          <li><code>GET /api/tasks</code> · List all tasks</li>
+          <li><code>POST /api/tasks</code> · Create a task, body: <code>{`{ "name": "", "date": "2025-01-01" }`}</code></li>
+          <li><code>GET /api/tasks/:id</code> · Retrieve a single task</li>
+          <li><code>PUT /api/tasks/:id</code> · Update any field</li>
+          <li><code>DELETE /api/tasks/:id</code> · Remove a task</li>
+        </ul>
+      </section>
+    </main>
   );
 }
