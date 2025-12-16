@@ -111,13 +111,23 @@ ensure_local_assets() {
     rm -rf "$tmp_dir"
   fi
 
-  TEMPLATE_ROOT="${archive_root}/examples/nodejs/setup/templates"
-  STACK_TEMPLATE_DIR="${archive_root}/examples/nodejs/setup/observability"
+  local candidate_roots=(
+    "${archive_root}/src/nodejs/setup"
+    "${archive_root}/examples/nodejs/setup"
+  )
 
-  if [ ! -d "$TEMPLATE_ROOT" ] || [ ! -d "$STACK_TEMPLATE_DIR" ]; then
-    echo "❌ Failed to locate templates in downloaded archive"
-    exit 1
-  fi
+  for candidate in "${candidate_roots[@]}"; do
+    local candidate_templates="${candidate}/templates"
+    local candidate_stack="${candidate}/observability"
+    if [ -d "$candidate_templates" ] && [ -d "$candidate_stack" ]; then
+      TEMPLATE_ROOT="$candidate_templates"
+      STACK_TEMPLATE_DIR="$candidate_stack"
+      return
+    fi
+  done
+
+  echo "❌ Failed to locate templates in downloaded archive"
+  exit 1
 }
 
 FRAMEWORK=""
