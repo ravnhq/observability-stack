@@ -1,55 +1,61 @@
-# Use Node.js 20 LTS
-FROM node:20-alpine AS base
+# Build stage
+FROM node:22-alpine AS builder
 
-# Set working directory
 WORKDIR /app
-
-# Install curl for health checks
-RUN apk add --no-cache curl
 
 # Copy package files
 COPY package*.json ./
-COPY tsconfig*.json ./
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
-# Development stage
-FROM base AS development
-RUN npm ci
-COPY . .
-EXPOSE 3000
-CMD ["npm", "run", "dev"]
+# Install dependencies
+RUN npm ci --legacy-peer-deps
 
-# Build stage
-FROM base AS build
-RUN npm ci --only=production && npm cache clean --force
+# Set a dummy DATABASE_URL for Prisma generate (only needed for type generation)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy source code
 COPY . .
+
+# Build the application
 RUN npm run build
 
+# Debug: verify dist exists
+RUN ls -la /app/dist
+
 # Production stage
-FROM node:20-alpine AS production
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S express -u 1001
-
-# Install curl for health checks
-RUN apk add --no-cache curl
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=build --chown=express:nodejs /app/dist ./dist
-COPY --from=build --chown=express:nodejs /app/node_modules ./node_modules
-COPY --from=build --chown=express:nodejs /app/package*.json ./
-COPY --from=build --chown=express:nodejs /app/prisma ./prisma
+# Copy package files
+COPY package*.json ./
 
-# Switch to non-root user
-USER express
+# Install production dependencies only
+RUN npm ci --omit=dev
 
-# Health check (update to match your health endpoint)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+# Copy prisma files and generate client
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+RUN npx prisma generate
+# Copy built application and generated prisma client from builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/generated ./generated
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
+# Debug: verify dist exists
+RUN ls -la /app/dist
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S expressjs -u 1001
+USER expressjs
+
+# Expose port
 EXPOSE 3000
 
-# 🔧 Fixed: Use the correct entry point from package.json
-CMD ["node", "dist/server.js"]
+# Start the application
+CMD ["node", "dist/src/main.js"]
