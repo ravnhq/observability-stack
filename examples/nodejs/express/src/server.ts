@@ -1,5 +1,4 @@
-import { startInstrumentation } from './instrumentation';
-startInstrumentation();
+import './instrumentation';
 
 import { app } from './app';
 

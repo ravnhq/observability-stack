@@ -41,7 +41,7 @@ export default async function Home() {
         </div>
         <ol className="mt-6 space-y-4">
           {tasks.length === 0 && <p className="text-sm text-zinc-500">Run POST /api/tasks to add your first task.</p>}
-          {tasks.map((task) => (
+          {tasks.map((task: any) => (
             <li key={task.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>

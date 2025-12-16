@@ -92,3 +92,5 @@ export function startInstrumentation() {
   sdk.start();
   console.log('OpenTelemetry instrumentation started');
 }
+
+startInstrumentation();
