@@ -1,62 +1,65 @@
+# Grafana data sources auto-provisioning configuration
+# This file automatically configures Mimir, Loki, and Tempo as data sources
+
 apiVersion: 1
 
 datasources:
-  # Prometheus - Metrics
-  - name: Prometheus
+  # Mimir (Prometheus-compatible) for metrics
+  - name: Mimir
     type: prometheus
     access: proxy
-    url: http://prometheus:9090
+    url: ${GRAFANA_DS_MIMIR_URL}
     isDefault: true
-    editable: false
     jsonData:
       httpMethod: POST
+      timeInterval: 15s
       exemplarTraceIdDestinations:
-        - name: traceID
-          datasourceUid: tempo
+        - datasourceUid: Tempo
+          name: trace_id
+    editable: true
 
-  # Loki - Logs
+  # Loki for logs
   - name: Loki
     type: loki
     access: proxy
-    url: http://loki:3100
-    uid: loki
-    editable: false
+    url: ${GRAFANA_DS_LOKI_URL}
     jsonData:
+      maxLines: 1000
       derivedFields:
-        - datasourceUid: tempo
-          matcherRegex: '"trace_id":"(\w+)"'
-          name: traceId
-          url: '$${__value.raw}'
+        - datasourceUid: Tempo
+          matcherRegex: ${GRAFANA_LOKI_TRACE_ID_REGEX}
+          name: TraceID
+          url: "$${__value.raw}"
+    editable: true
 
-  # Tempo - Traces
+  # Tempo for distributed tracing
   - name: Tempo
     type: tempo
     access: proxy
-    url: http://tempo:3200
-    uid: tempo
-    editable: false
+    url: ${GRAFANA_DS_TEMPO_URL}
     jsonData:
       httpMethod: GET
+      streamingEnabled: false
       tracesToLogs:
-        datasourceUid: loki
-        tags: ['service.name', 'service.namespace']
-        mappedTags: [{ key: 'service.name', value: 'service_name' }]
-        mapTagNamesEnabled: true
+        datasourceUid: Loki
+        mapTagNamesEnabled: false
         spanStartTimeShift: '-1h'
         spanEndTimeShift: '1h'
         filterByTraceID: true
         filterBySpanID: false
+        lokiSearch: true
       tracesToMetrics:
-        datasourceUid: prometheus
-        tags: [{ key: 'service.name', value: 'service' }]
+        datasourceUid: Mimir
+        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
         queries:
-          - name: 'Request Rate'
-            query: 'sum(rate(http_server_request_duration_seconds_count{$$__tags}[5m]))'
-          - name: 'Error Rate'
-            query: 'sum(rate(http_server_request_duration_seconds_count{$$__tags, http_status_code=~"5.."}[5m]))'
+          - name: 'Sample query'
+            query: 'sum(rate(traces_spanmetrics_latency_bucket{$__tags}[5m]))'
       serviceMap:
-        datasourceUid: prometheus
+        datasourceUid: Mimir
       nodeGraph:
         enabled: true
+      search:
+        hide: false
       lokiSearch:
-        datasourceUid: loki
+        datasourceUid: Loki
+    editable: true

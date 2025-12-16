@@ -1,0 +1,122 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: ${LOG_LEVEL:-info}
+
+common:
+  path_prefix: /loki
+  replication_factor: ${LOKI_REPLICATION_FACTOR:-1}
+  ring:
+    kvstore:
+      store: ${KVSTORE_TYPE:-inmemory}
+
+# Schema configuration
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: ${STORAGE_TYPE:-filesystem}
+      schema: v13
+      index:
+        prefix: loki_index_
+        period: 24h
+
+# Storage configuration - dynamically switches between filesystem and cloud
+storage_config:
+  # Filesystem storage (local development)
+  filesystem:
+    directory: ${LOKI_DATA_PATH:-/loki/chunks}
+  
+  # S3 storage (production)
+  aws:
+    s3: ${S3_BUCKET_LOGS}
+    region: ${AWS_REGION}
+    access_key_id: ${AWS_ACCESS_KEY_ID}
+    secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+    s3forcepathstyle: false
+    # sse_encryption: ${S3_SSE_ENCRYPTION:-false} # Deprecated in v13
+  
+  # Google Cloud Storage (alternative)
+  gcs:
+    bucket_name: ${GCS_BUCKET_LOGS}
+  
+  # TSDB Index storage
+  tsdb_shipper:
+    active_index_directory: ${LOKI_DATA_PATH:-/loki}/index
+    cache_location: ${LOKI_DATA_PATH:-/loki}/index_cache
+    # shared_store: ${STORAGE_TYPE:-filesystem} # Deprecated in v13
+    cache_ttl: 24h
+
+# Ingester configuration
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: ${KVSTORE_TYPE:-inmemory}
+      replication_factor: ${LOKI_REPLICATION_FACTOR:-1}
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+  wal:
+    enabled: ${LOKI_WAL_ENABLED:-true}
+    dir: ${LOKI_DATA_PATH:-/loki}/wal
+
+# Compactor configuration
+compactor:
+  working_directory: ${LOKI_DATA_PATH:-/loki}/compactor
+  # shared_store: ${STORAGE_TYPE:-filesystem} # Deprecated in v13
+  compaction_interval: ${LOKI_COMPACTION_INTERVAL:-10m}
+  retention_enabled: ${LOKI_COMPACTION_ENABLED:-true}
+  retention_delete_delay: ${LOKI_RETENTION_DELETE_DELAY:-2h}
+  # compactor.delete-request-store should be configured when retention is enabled
+  delete_request_store: ${STORAGE_TYPE:-filesystem}
+
+# Ruler configuration (for alerts)
+ruler:
+  storage:
+    # filesystem is deprecated in v13
+    # type: ${STORAGE_TYPE:-filesystem}
+    # filesystem:
+    #   dir: ${LOKI_DATA_PATH:-/loki}/rules
+    type: ${STORAGE_MODE:-local}
+    local:
+      directory: ${LOKI_DATA_PATH:-/loki}/rules
+    s3:
+      bucketnames: ${S3_BUCKET_LOGS}
+      region: ${AWS_REGION}
+      access_key_id: ${AWS_ACCESS_KEY_ID}
+      secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  rule_path: ${LOKI_DATA_PATH:-/loki}/rules-temp
+  alertmanager_url: ${ALERTMANAGER_URL:-http://alertmanager:9093}
+  ring:
+    kvstore:
+      store: ${KVSTORE_TYPE:-inmemory}
+
+# Query configuration
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_items: 1024
+        ttl: 24h
+      # enable_fifocache is deprecated in v13
+      # enable_fifocache: true
+      # fifocache:
+      #   max_size_items: 1024
+      #   validity: 24h
+
+# Rate limiting and retention
+limits_config:
+  retention_period: ${LOKI_RETENTION_HOURS:-168}h
+  ingestion_rate_mb: ${LOKI_INGESTION_RATE_MB:-4}
+  ingestion_burst_size_mb: ${LOKI_INGESTION_BURST_MB:-6}
+  max_global_streams_per_user: ${LOKI_MAX_GLOBAL_STREAMS:-10000}
+  max_query_length: ${LOKI_MAX_QUERY_LENGTH:-721h}
+  max_streams_per_user: ${LOKI_MAX_STREAMS_PER_USER:-0}
+  max_line_size: ${LOKI_MAX_LINE_SIZE:-256000}
+  max_entries_limit_per_query: ${LOKI_MAX_ENTRIES_LIMIT:-5000}
+  per_stream_rate_limit: ${LOKI_PER_STREAM_RATE_LIMIT:-3}MB
+  per_stream_rate_limit_burst: ${LOKI_PER_STREAM_RATE_LIMIT_BURST:-15}MB
+  cardinality_limit: ${LOKI_CARDINALITY_LIMIT:-100000}
