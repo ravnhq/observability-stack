@@ -19,7 +19,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 9,
   "links": [
     {
       "asDropdown": false,
@@ -874,6 +874,103 @@
           ],
           "title": "Request Rate",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 33
+          },
+          "id": 24,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "topk(10,\n  sum by(queryid) (\n    rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n  )\n  * on(queryid) group_left(query)\n  pg_stat_statements_query_id\n)",
+              "legendFormat": "{{query}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Query Execution Frequency",
+          "type": "timeseries"
         }
       ],
       "title": "Rate",
@@ -957,7 +1054,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 341
           },
           "id": 2,
           "options": {
@@ -1055,7 +1152,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 348
           },
           "id": 13,
           "options": {
@@ -1158,7 +1255,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 348
           },
           "id": 12,
           "options": {
@@ -1273,7 +1370,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 75
           },
           "id": 11,
           "options": {
@@ -1379,7 +1476,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 83
           },
           "id": 16,
           "options": {
@@ -1480,7 +1577,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 83
           },
           "id": 17,
           "options": {
@@ -1513,6 +1610,187 @@
             }
           ],
           "title": "PR 95 Requests Duration",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.0001
+                  },
+                  {
+                    "color": "orange",
+                    "value": 0.001
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.01
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 91
+          },
+          "id": 23,
+          "options": {
+            "displayMode": "gradient",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "maxVizHeight": 300,
+            "minVizHeight": 50,
+            "minVizWidth": 8,
+            "namePlacement": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true,
+            "sizing": "manual",
+            "valueMode": "color"
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "topk(10,\n  sum by(queryid, datname) (\n    rate(pg_stat_statements_seconds_total{datname!~\"template.*|postgres\"}[$__rate_interval])\n  )\n  * on(queryid) group_left(query)\n  pg_stat_statements_query_id\n)",
+              "legendFormat": "{{query}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Top Queries by Total Time",
+          "type": "bargauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PAE45454D0EDB9216"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 99
+          },
+          "id": 26,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "topk(10,\n  (\n    sum by(queryid, datname) (\n      rate(pg_stat_statements_seconds_total{datname!~\"template.*\"}[$__rate_interval])\n    )\n    /\n    sum by(queryid, datname) (\n      rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n    )\n  )\n  * on(queryid) group_left(query)\n  pg_stat_statements_query_id\n)",
+              "legendFormat": "{{query}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Average Query Latency",
           "type": "timeseries"
         }
       ],
