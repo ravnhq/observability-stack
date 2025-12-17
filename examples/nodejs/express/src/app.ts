@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { taskRoutes } from './tasks/task.routes';
 import { logger } from './config/logger';
+import { metricsHandler, metricsMiddleware } from './metrics';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(metricsMiddleware);
 app.use(cors());
 app.use(express.json());
 
@@ -29,6 +31,8 @@ app.get('/health', (_req, res) => {
   logger.info('Health check called');
   res.status(200).json({ status: 'ok' });
 });
+
+app.get('/metrics', metricsHandler);
 
 app.use('/tasks', taskRoutes);
 

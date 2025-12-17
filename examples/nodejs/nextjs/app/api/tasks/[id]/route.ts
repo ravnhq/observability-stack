@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { startHttpRequestTimer } from '@/lib/metrics';
 
 const notFound = () => NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
@@ -11,22 +12,32 @@ const resolveId = async (context: ParamsContext) => {
 };
 
 export async function GET(_req: NextRequest, context: ParamsContext) {
+  const stopTimer = startHttpRequestTimer('GET', '/api/tasks/{id}');
   const id = await resolveId(context);
   if (Number.isNaN(id)) {
-    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const response = NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    stopTimer(response.status, 'HttpException');
+    return response;
   }
 
   const task = await prisma.task.findUnique({ where: { id } });
   if (!task) {
-    return notFound();
+    const response = notFound();
+    stopTimer(response.status, 'HttpException');
+    return response;
   }
-  return NextResponse.json(task);
+  const response = NextResponse.json(task);
+  stopTimer(response.status);
+  return response;
 }
 
 export async function PUT(request: NextRequest, context: ParamsContext) {
+  const stopTimer = startHttpRequestTimer('PUT', '/api/tasks/{id}');
   const id = await resolveId(context);
   if (Number.isNaN(id)) {
-    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const response = NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    stopTimer(response.status, 'HttpException');
+    return response;
   }
 
   try {
@@ -43,24 +54,35 @@ export async function PUT(request: NextRequest, context: ParamsContext) {
       },
     });
 
-    return NextResponse.json(task);
+    const response = NextResponse.json(task);
+    stopTimer(response.status);
+    return response;
   } catch (error) {
     console.error('[tasks] Failed to update task', error);
-    return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    const response = NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    stopTimer(response.status, 'InternalServerErrorException');
+    return response;
   }
 }
 
 export async function DELETE(_request: NextRequest, context: ParamsContext) {
+  const stopTimer = startHttpRequestTimer('DELETE', '/api/tasks/{id}');
   const id = await resolveId(context);
   if (Number.isNaN(id)) {
-    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    const response = NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    stopTimer(response.status, 'HttpException');
+    return response;
   }
 
   try {
     await prisma.task.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    stopTimer(response.status);
+    return response;
   } catch (error) {
     console.error('[tasks] Failed to delete task', error);
-    return notFound();
+    const response = notFound();
+    stopTimer(response.status, 'HttpException');
+    return response;
   }
 }
