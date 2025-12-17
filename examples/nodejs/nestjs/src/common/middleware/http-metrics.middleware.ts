@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { MetricsService } from '../services/metrics.service';
+import * as promClient from 'prom-client';
 import { trace } from '@opentelemetry/api';
 
 @Injectable()
@@ -19,9 +20,6 @@ export class HttpMetricsMiddleware implements NestMiddleware {
     // Record start time
     const startTime = Date.now();
 
-    // Extract trace context for exemplars
-    const { traceId, spanId } = this.extractTraceContext(req);
-
     // Wait for response to finish
     res.on('finish', () => {
       const duration = (Date.now() - startTime) / 1000; // Convert to seconds
@@ -33,6 +31,7 @@ export class HttpMetricsMiddleware implements NestMiddleware {
       const outcome = this.determineOutcome(res.statusCode);
       const exception = this.extractException(res);
       const error = this.extractError(res);
+      const { traceId, spanId } = this.extractTraceContext(req);
 
       // Record histogram metric
       this.metricsService
