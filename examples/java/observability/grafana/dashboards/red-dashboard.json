@@ -957,7 +957,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 34
           },
           "id": 2,
           "options": {
@@ -1055,7 +1055,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 41
           },
           "id": 13,
           "options": {
@@ -1080,7 +1080,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", status=~\"4.*\", uri!~\"/actuator/prometheus|/metrics\"}) \n/ \n(sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}))",
+              "expr": "sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", status=~\"4.*\", uri!~\"/actuator/prometheus|/metrics\"}) \n/ \n(sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1158,7 +1158,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 41
           },
           "id": 12,
           "options": {
@@ -1183,7 +1183,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", status=~\"5.*\", uri!~\"/actuator/prometheus|/metrics\"}) \n/ \n(sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}))",
+              "expr": "sum by(uri) (http_server_requests_seconds_bucket{instance=\"$instance\", status=~\"5.*\", uri!~\"/actuator/prometheus|/metrics\"}) \n/ \n(sum by(uri) (http_server_requests_seconds_count{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1273,7 +1273,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 50
           },
           "id": 11,
           "options": {
@@ -1379,7 +1379,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 58
           },
           "id": 16,
           "options": {
@@ -1480,7 +1480,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 58
           },
           "id": 17,
           "options": {
