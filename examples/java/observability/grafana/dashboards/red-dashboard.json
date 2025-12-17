@@ -957,7 +957,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 34
+            "y": 19
           },
           "id": 2,
           "options": {
@@ -1055,7 +1055,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 26
           },
           "id": 13,
           "options": {
@@ -1158,7 +1158,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 26
           },
           "id": 12,
           "options": {
@@ -1273,7 +1273,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 50
+            "y": 35
           },
           "id": 11,
           "options": {
@@ -1379,7 +1379,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 43
           },
           "id": 16,
           "options": {
@@ -1404,7 +1404,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "histogram_quantile(.99,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
+              "expr": "histogram_quantile(.99,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}[1m])) by(uri, le))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1480,7 +1480,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 43
           },
           "id": 17,
           "options": {
@@ -1505,7 +1505,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "histogram_quantile(.95,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!=\"/actuator/prometheus\"}[1m])) by(uri, le))",
+              "expr": "histogram_quantile(.95,sum(rate(http_server_requests_seconds_bucket{instance=\"$instance\", uri!~\"/actuator/prometheus|/metrics\"}[1m])) by(uri, le))",
               "interval": "",
               "legendFormat": "{{uri}}",
               "range": true,
@@ -1555,5 +1555,5 @@
   "timezone": "browser",
   "title": "RED Dashboard",
   "uid": "ad5zp69",
-  "version": 5
+  "version": 1
 }
