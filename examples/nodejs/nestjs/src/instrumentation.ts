@@ -55,6 +55,10 @@ const sdk = new NodeSDK({
   ],
 });
 
+// Start SDK immediately as a side effect of importing this module
+sdk.start();
+console.log('OpenTelemetry instrumentation started');
+
 // Graceful shutdown
 process.on('SIGTERM', () => {
   sdk
@@ -63,8 +67,3 @@ process.on('SIGTERM', () => {
     .catch((error) => console.error('Error shutting down OpenTelemetry SDK', error))
     .finally(() => process.exit(0));
 });
-
-export function startInstrumentation() {
-  sdk.start();
-  console.log('OpenTelemetry instrumentation started');
-}

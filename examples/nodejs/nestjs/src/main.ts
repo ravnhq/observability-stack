@@ -1,7 +1,5 @@
 // Initialize OpenTelemetry BEFORE importing anything else
-import { startInstrumentation } from './instrumentation';
-
-startInstrumentation();
+import './instrumentation';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
