@@ -1,98 +1,136 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Adding OpenTelemetry Observability to NestJS Applications
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+How to add **production-ready observability** to NestJS applications using OpenTelemetry, Prometheus, and the Grafana LGTM stack.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Table of Contents
+- [How to Setup the LGTM Stack](#how-to-setup-the-lgtm-stack)
 
-## Description
+## How to Setup the LGTM Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+The LGTM observability stack (Loki, Grafana, Tempo, Mimir) can be installed with a single command using the provided installation script. The script automatically downloads all necessary configuration files and sets up the complete observability infrastructure.
 
-## Project setup
+### Prerequisites
+
+The installation script validates the following dependencies automatically:
+- **Docker**: Container runtime
+- **Docker Compose**: Service orchestration
+- **curl**: For downloading files
+
+If any dependency is missing, the script will provide installation instructions.
+
+### Installation Scenarios
+
+#### Fresh Installation (Default)
+
+Install the stack from the master branch to a new `./observability/` directory:
 
 ```bash
-$ npm install
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh)
 ```
 
-## Compile and run the project
+**What this does:**
+- Downloads essential files to `./observability/` directory
+- Creates `.env` file from template
+- Generates a secure Grafana admin password automatically
+
+**Startup time:** Initial startup typically takes 2-3 minutes as Docker builds images and initializes services.
+
+#### Branch-Specific Installation
+
+Install from a specific Git branch (e.g., to test new features or use a development version):
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/nestjs-example/install.sh) --branch nestjs-example
 ```
 
-## Run tests
+**Note:** When using a different branch, ensure the URL path matches the branch name in both the download URL and the `--branch` parameter.
+
+### Post-Installation Configuration
+
+After installation, review and modify `./observability/.env` to adapt the stack to your deployment infrastructure:
+
+#### Storage Configuration
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Storage backend type
+STORAGE_TYPE=filesystem  # Options: filesystem, s3, gcs
 ```
 
-## Deployment
+- **filesystem**: Data stored locally (default, good for development)
+- **s3**: AWS S3 buckets (recommended for production)
+- **gcs**: Google Cloud Storage (alternative for GCP deployments)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+#### Cloud Storage Credentials (if using S3)
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+
+# S3 bucket names
+LOKI_S3_BUCKET=loki-logs
+TEMPO_S3_BUCKET=tempo-traces
+MIMIR_S3_BUCKET=mimir-metrics
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+#### Cloud Storage Credentials (if using GCS)
 
-## Resources
+```bash
+GCS_BUCKET_NAME=your-bucket-name
+GCS_SERVICE_ACCOUNT_KEY=/path/to/service-account-key.json
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+#### Port Configuration
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Adjust ports if defaults conflict with existing services:
 
-## Support
+```bash
+GRAFANA_PORT=3030        # Default Grafana UI
+ALLOY_OTLP_GRPC_PORT=4317  # OTLP gRPC endpoint
+ALLOY_OTLP_HTTP_PORT=4318  # OTLP HTTP endpoint
+ALLOY_UI_PORT=12345        # Alloy configuration UI
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+#### Data Retention Periods
 
-## Stay in touch
+Configure how long telemetry data is stored:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+LOKI_RETENTION_PERIOD=168h    # 7 days (logs)
+TEMPO_RETENTION_PERIOD=336h   # 14 days (traces)
+MIMIR_RETENTION_PERIOD=8760h  # 365 days (metrics)
+```
 
-## License
+#### Scrape Targets (for distributed deployments)
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Configure external endpoints for Prometheus scraping:
+
+```bash
+# Application metrics endpoint
+SCRAPE_APP_TARGET=host.docker.internal:8080
+SCRAPE_APP_METRICS_PATH=/actuator/prometheus
+
+# PostgreSQL exporter metrics
+SCRAPE_POSTGRES_TARGET=host.docker.internal:9187
+SCRAPE_POSTGRES_METRICS_PATH=/metrics
+
+# Node exporter metrics
+SCRAPE_NODE_EXPORTER_TARGET=host.docker.internal:9100
+SCRAPE_NODE_EXPORTER_METRICS_PATH=/metrics
+```
+
+For distributed deployments where applications run on different hosts, replace `host.docker.internal` with the actual hostname or IP address.
+
+### Access Points
+
+After the stack is running, access these services:
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|---------|
+| **Grafana** | http://localhost:3030 | admin / [generated-password]* | Visualization dashboards |
+| **Alloy UI** | http://localhost:12345 | None | Telemetry pipeline status |
+| **OTLP gRPC** | localhost:4317 | None | Application trace/metric submission |
+| **OTLP HTTP** | localhost:4318 | None | Application trace/metric submission |
+
+**\*Note:** The Grafana password is displayed in the installation output and saved in `./observability/.env`
+

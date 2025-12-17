@@ -1,9 +1,21 @@
 // OTLP Receivers
 otelcol.receiver.otlp "default" {
   grpc {
-    endpoint = "0.0.0.0:" + env("ALLOY_OTLP_GRPC_PORT")
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
   }
 
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Batch Processor
+otelcol.processor.batch "default" {
   output {
     metrics = [otelcol.exporter.prometheus.mimir.input]
     logs    = [otelcol.exporter.loki.default.input]
@@ -43,13 +55,64 @@ otelcol.exporter.otlp "tempo" {
   }
 }
 
-// PostgreSQL monitoring (optional - only if DB_DSN is set)
-prometheus.exporter.postgres "database" {
-  data_source_names = [env("DB_DSN")]
+
+// Scraper Configuration
+
+// Scrape job for PostgreSQL metrics via postgres_exporter (configurable)
+prometheus.scrape "postgres" {
+  targets = [
+    {
+      "__address__" = env("SCRAPE_POSTGRES_TARGET"),
+      "job"         = env("SCRAPE_POSTGRES_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = "userdemo-postgres",
+      "database"    = env("POSTGRES_DB"),
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = env("SCRAPE_POSTGRES_METRICS_PATH")
 }
 
-prometheus.scrape "postgres" {
-  targets    = prometheus.exporter.postgres.database.targets
-  forward_to = [prometheus.remote_write.mimir.receiver]
+// Scrape job for application metrics (configurable)
+prometheus.scrape "application" {
+  targets = [
+    {
+      "__address__" = env("SCRAPE_APP_TARGET"),
+      "job"         = env("SCRAPE_APP_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = env("SCRAPE_APP_JOB"),
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
   scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = env("SCRAPE_APP_METRICS_PATH")
 }
+
+// Scrape job for Node Exporter metrics
+prometheus.scrape "node_exporter" {
+  targets = [
+    {
+      "__address__" = env("SCRAPE_NODE_EXPORTER_TARGET"),
+      "job"         = env("SCRAPE_NODE_EXPORTER_JOB"),
+      "environment" = env("ENVIRONMENT"),
+      "service"     = "node-exporter",
+    },
+  ]
+
+  forward_to      = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+  metrics_path    = env("SCRAPE_NODE_EXPORTER_METRICS_PATH")
+}
+
+// Optional: Enable live debugging
+/*
+livedebugging {
+  enabled = true
+}
+*/
