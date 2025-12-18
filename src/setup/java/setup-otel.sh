@@ -50,7 +50,6 @@ NC='\033[0m' # No Color
 # Global state
 declare -a ERRORS=()
 declare -a WARNINGS=()
-PROJECT_NAME=""
 JAVA_VERSION=""
 SELECTED_TEMPLATE=""
 DRY_RUN=false
@@ -132,18 +131,6 @@ validate_package_name() {
     fi
 }
 
-validate_spring_cli() {
-    print_info "Checking for Spring CLI..."
-    if ! command -v spring &> /dev/null; then
-        print_error "Spring Boot CLI not found. Please install it first.
-
-Installation instructions:
-https://docs.spring.io/spring-boot/installing.html#getting-started.installing.cli" true
-    fi
-    local spring_version=$(spring --version 2>&1 | head -1)
-    print_success "Spring Boot CLI found: $spring_version"
-}
-
 validate_project_structure() {
     if [[ ! -d "src/main/resources" ]]; then
         print_warning "Directory src/main/resources does not exist"
@@ -154,6 +141,20 @@ validate_project_structure() {
             print_error "Cannot continue without src/main/resources" true
         fi
     fi
+}
+
+validate_spring_boot_project() {
+    print_info "Validating Spring Boot project..."
+
+    if [[ ! -f "pom.xml" ]] && [[ ! -f "build.gradle" ]] && [[ ! -f "build.gradle.kts" ]]; then
+        print_error "Not a Spring Boot project directory. No build file found (pom.xml, build.gradle, or build.gradle.kts)" true
+    fi
+
+    if [[ ! -d "src" ]]; then
+        print_error "Invalid Spring Boot project structure. No 'src' directory found." true
+    fi
+
+    print_success "Valid Spring Boot project detected"
 }
 
 # ============================================================================
@@ -398,27 +399,6 @@ prompt_package_name() {
     done
 }
 
-prompt_dependencies() {
-    local base_deps="actuator,prometheus"
-
-    print_info "Base dependencies (always included): actuator, prometheus" >&2
-
-    if prompt_yes_no "Do you want to add additional dependencies?" "y"; then
-        echo "" >&2
-        print_info "Enter comma-separated dependency IDs (e.g., web,jpa,lombok)" >&2
-        print_info "Run 'spring init --list' to see available dependencies" >&2
-        read -p "$(echo -e ${CYAN}Additional dependencies: ${NC})" -r additional_deps
-
-        if [[ -n "$additional_deps" ]]; then
-            echo "${base_deps},${additional_deps}"
-        else
-            echo "$base_deps"
-        fi
-    else
-        echo "$base_deps"
-    fi
-}
-
 prompt_overwrite() {
     local filename="$1"
 
@@ -475,16 +455,9 @@ copy_file() {
 
 copy_configuration_files() {
     local template_dir="$1"
-    local is_new_project="${2:-false}"
     local overwrite_all=false
 
-    print_step "6" "Copying configuration files"
-
-    # For new projects, always overwrite without prompting
-    if [[ "$is_new_project" == true ]]; then
-        overwrite_all=true
-        print_info "New project mode: all configuration files will be overwritten"
-    fi
+    print_step "4" "Copying configuration files"
 
     # Define file mappings: "source:destination:description"
     local file_mappings=(
@@ -543,9 +516,8 @@ copy_configuration_files() {
 
 create_environment_file() {
     local template_dir="$1"
-    local is_new_project="${2:-false}"
 
-    print_step "7" "Creating environment file"
+    print_step "5" "Creating environment file"
 
     local env_example="${TEMPLATE_DIR}/${template_dir}/.env.example"
     local env_dest="./.env"
@@ -562,23 +534,15 @@ create_environment_file() {
     fi
 
     if [[ -f "$env_dest" ]]; then
-        # For new projects, always overwrite without prompting
-        if [[ "$is_new_project" == true ]]; then
+        print_warning ".env file already exists"
+        if prompt_yes_no "Overwrite existing .env file?" "y"; then
             cp "$env_example" "$env_dest"
-            print_success "Created .env from template (new project mode)"
+            print_success "Created .env from template"
             print_info "Please review and update .env with your configuration"
             return 0
         else
-            print_warning ".env file already exists"
-            if prompt_yes_no "Overwrite existing .env file?" "y"; then
-                cp "$env_example" "$env_dest"
-                print_success "Created .env from template"
-                print_info "Please review and update .env with your configuration"
-                return 0
-            else
-                print_info "Kept existing .env file"
-                return 1
-            fi
+            print_info "Kept existing .env file"
+            return 1
         fi
     else
         cp "$env_example" "$env_dest"
@@ -592,132 +556,8 @@ create_environment_file() {
 # Main Workflow Functions
 # ============================================================================
 
-create_new_project() {
-    print_step "2" "Configuring new Spring Boot project"
-
-    echo ""
-    print_info "Collecting Spring Boot project configuration..."
-    print_info "Press Enter to accept default values shown in brackets"
-    echo ""
-
-    # === Project Identity ===
-    print_info "--- Project Identity ---"
-    local name=$(prompt_with_default "Project name" "demo")
-    PROJECT_NAME="$name"
-    local artifact_id=$(prompt_with_default "Artifact ID" "demo")
-    local group_id=$(prompt_package_name "Group ID" "co.ravn")
-
-
-    # === Technical Configuration ===
-    echo ""
-    print_info "--- Technical Configuration ---"
-
-    local language=$(prompt_with_default "Programming language" "java")
-
-    # Java version prompt with validation
-    local java_version=""
-    while true; do
-        java_version=$(prompt_with_default "Java version (17, 21, or 25)" "17")
-        if validate_java_version "$java_version"; then
-            break
-        else
-            print_warning "Unsupported Java version: $java_version. Supported: ${SUPPORTED_JAVA_VERSIONS[*]}"
-        fi
-    done
-
-    # Store in global for later template selection
-    JAVA_VERSION="$java_version"
-
-    local boot_version=$(prompt_with_default "Spring Boot version" "3.5.8")
-
-    # === Build System ===
-    echo ""
-    print_info "--- Build System ---"
-    local project_type=$(prompt_with_default "Build system" "maven-project")
-
-    # === Packaging ===
-    echo ""
-    print_info "--- Packaging Configuration ---"
-    local packaging=$(prompt_with_default "Packaging type" "jar")
-
-    # Smart default for package name
-    local default_package_name="${group_id}.${artifact_id}"
-    local package_name=$(prompt_package_name "Package name" "$default_package_name")
-
-    # === Dependencies ===
-    echo ""
-    print_info "--- Dependencies ---"
-    local dependencies=$(prompt_dependencies)
-
-    # === Project Metadata ===
-    echo ""
-    print_info "--- Project Metadata ---"
-    local version=$(prompt_with_default "Version" "0.0.1-SNAPSHOT")
-    local description=$(prompt_with_default "Description" "Demo project for Spring Boot with Instrumentation")
-
-    # === Display Summary ===
-    echo ""
-    print_info "--- Configuration Summary ---"
-    echo -e "  Name:              ${GREEN}${name}${NC}"
-    echo -e "  Artifact ID:       ${GREEN}${artifact_id}${NC}"
-    echo -e "  Group ID:          ${GREEN}${group_id}${NC}"
-    echo -e "  Language:          ${GREEN}${language}${NC}"
-    echo -e "  Java Version:      ${GREEN}${java_version}${NC}"
-    echo -e "  Spring Boot:       ${GREEN}${boot_version}${NC}"
-    echo -e "  Build Type:        ${GREEN}${project_type}${NC}"
-    echo -e "  Packaging:         ${GREEN}${packaging}${NC}"
-    echo -e "  Package Name:      ${GREEN}${package_name}${NC}"
-    echo -e "  Dependencies:      ${GREEN}${dependencies}${NC}"
-    echo -e "  Version:           ${GREEN}${version}${NC}"
-    echo -e "  Description:       ${GREEN}${description}${NC}"
-    echo ""
-
-    if ! prompt_yes_no "Proceed with project creation?" "y"; then
-        print_error "Project creation cancelled by user" true
-    fi
-
-    # === Build Command ===
-    local spring_init_cmd="spring init"
-    spring_init_cmd+=" --group-id=${group_id}"
-    spring_init_cmd+=" --artifact-id=${artifact_id}"
-    spring_init_cmd+=" --name=${name}"
-    spring_init_cmd+=" --description=\"${description}\""
-    spring_init_cmd+=" --version=${version}"
-    spring_init_cmd+=" --java-version=${java_version}"
-    spring_init_cmd+=" --boot-version=${boot_version}"
-    spring_init_cmd+=" --language=${language}"
-    spring_init_cmd+=" --type=${project_type}"
-    spring_init_cmd+=" --packaging=${packaging}"
-    spring_init_cmd+=" --package-name=${package_name}"
-    spring_init_cmd+=" --dependencies=${dependencies}"
-    spring_init_cmd+=" --extract"
-
-    # === Execute ===
-    echo ""
-    print_info "Executing: $spring_init_cmd"
-    echo ""
-
-    if [[ "$DRY_RUN" == true ]]; then
-        print_info "[DRY RUN] Would execute: $spring_init_cmd"
-        return 0
-    fi
-
-    # Execute the command
-    mkdir -p "$name"
-    cd "$name" || {
-        print_error "Failed to create and change to project directory: $name" true
-    }
-    if eval "$spring_init_cmd"; then
-        print_success "Spring Boot project created successfully"
-        return 0
-    else
-        print_error "Failed to create Spring Boot project. Check the error message above." true
-    fi
-}
-
 display_summary() {
-    local is_new_project="$1"
-    local include_postgres="$2"
+    local include_postgres="$1"
 
     echo ""
     print_header "Setup Complete!"
@@ -745,11 +585,10 @@ display_summary() {
 
     # Next steps
     echo -e "${CYAN}Next Steps:${NC}"
-    echo -e "  ${BLUE}1.${NC} Go to your project directory: ${YELLOW}cd ${PROJECT_NAME}${NC}"
-    echo -e "  ${BLUE}2.${NC} Review and update ${YELLOW}.env${NC} with your configuration"
-    echo -e "  ${BLUE}3.${NC} Build and run: ${YELLOW}docker-compose up -d --build${NC}"
-    echo -e "  ${BLUE}4.${NC} Access application: ${YELLOW}http://localhost:8080${NC}"
-    echo -e "  ${BLUE}5.${NC} View metrics: ${YELLOW}http://localhost:8080/actuator/prometheus${NC}"
+    echo -e "  ${BLUE}1.${NC} Review and update ${YELLOW}.env${NC} with your configuration"
+    echo -e "  ${BLUE}2.${NC} Build and run: ${YELLOW}docker-compose up -d --build${NC}"
+    echo -e "  ${BLUE}3.${NC} Access application: ${YELLOW}http://localhost:8080${NC}"
+    echo -e "  ${BLUE}4.${NC} View metrics: ${YELLOW}http://localhost:8080/actuator/prometheus${NC}"
 
     if [[ "$include_postgres" == true ]]; then
         echo -e "  ${BLUE}5.${NC} PostgreSQL available: ${YELLOW}localhost:5432${NC}"
@@ -798,8 +637,9 @@ OPTIONS:
                        (default: master)
 
 DESCRIPTION:
-    Automates the setup of Spring Boot applications with OpenTelemetry
-    instrumentation. Supports both new and existing projects.
+    Automates the setup of OpenTelemetry instrumentation for existing
+    Spring Boot applications. Detects Java version, downloads appropriate
+    templates, and configures observability stack.
 
 SUPPORTED JAVA VERSIONS:
     17, 21, 25
@@ -869,44 +709,28 @@ main() {
     # Parse command-line arguments
     parse_arguments "$@"
 
-    # Step 1: Determine setup mode
-    print_step "1" "Determine setup mode"
-    local is_new_project=false
-    if prompt_yes_no "Are you starting a new project?" "y"; then
-        is_new_project=true
-    fi
+    # Step 0: Validate Spring Boot project
+    print_step "0" "Validating project"
+    validate_spring_boot_project
 
-    # Step 2: Create new project if needed
-    if [[ "$is_new_project" == true ]]; then
-        print_step "2" "Creating new Spring Boot project"
-        validate_spring_cli
-        create_new_project
-    fi
-
-    # Step 3: Detect Java version
-    print_step "3" "Detecting Java version"
-    if [[ "$is_new_project" == true ]]; then
-        # Java version already set by create_new_project()
-        print_success "Using Java version from project configuration: $JAVA_VERSION"
-    else
-        # Detect from existing project files
-        JAVA_VERSION=$(detect_java_version)
-    fi
+    # Step 1: Detect Java version
+    print_step "1" "Detecting Java version"
+    JAVA_VERSION=$(detect_java_version)
 
     # Validate that we have a Java version
     if [[ -z "$JAVA_VERSION" ]]; then
         print_error "Failed to determine Java version" true
     fi
 
-    # Step 4: Determine PostgreSQL requirement
-    print_step "4" "Database configuration"
+    # Step 2: Determine PostgreSQL requirement
+    print_step "2" "Database configuration"
     local include_postgres=false
     if prompt_yes_no "Do you want to include PostgreSQL database configuration?" "y"; then
         include_postgres=true
     fi
 
-    # Step 5: Select and download template
-    print_step "5" "Selecting and downloading template"
+    # Step 3: Select and download template
+    print_step "3" "Selecting and downloading template"
     local template_suffix=""
     [[ "$include_postgres" == true ]] && template_suffix="-postgres"
     SELECTED_TEMPLATE="java-${JAVA_VERSION}${template_suffix}"
@@ -925,14 +749,14 @@ main() {
     # Validate project structure
     validate_project_structure
 
-    # Step 6: Copy configuration files
-    copy_configuration_files "$SELECTED_TEMPLATE" "$is_new_project"
+    # Step 4: Copy configuration files
+    copy_configuration_files "$SELECTED_TEMPLATE"
 
-    # Step 7: Create environment file
-    create_environment_file "$SELECTED_TEMPLATE" "$is_new_project"
+    # Step 5: Create environment file
+    create_environment_file "$SELECTED_TEMPLATE"
 
     # Final: Display summary
-    display_summary "$is_new_project" "$include_postgres"
+    display_summary "$include_postgres"
 
     # Exit with appropriate code
     if [[ ${#ERRORS[@]} -gt 0 ]]; then
