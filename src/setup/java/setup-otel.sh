@@ -792,8 +792,7 @@ patch_configuration_files() {
 
         # Execute the appropriate patch function
         local result=0
-        $func "$target" "$patch" "$desc"
-        result=$?
+        $func "$target" "$patch" "$desc" || result=$?
 
         # Update counters based on result
         case $result in
@@ -910,8 +909,7 @@ create_environment_file() {
             fi
 
             local result=0
-            append_marked_block_if_missing "$env_dest" "$env_patch_example" "Environment file"
-            result=$?
+            append_marked_block_if_missing "$env_dest" "$env_patch_example" "Environment file" || result=$?
 
             case $result in
                 0)
