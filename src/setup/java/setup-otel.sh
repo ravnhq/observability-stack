@@ -260,7 +260,7 @@ download_template_file() {
     local file_name=$2
     local dest_path=$3
 
-    local file_url="${REPO_URL}/raw/${BRANCH}/setup/java/templates/${template_name}/${file_name}"
+    local file_url="${REPO_URL}/raw/${BRANCH}/src/setup/java/templates/${template_name}/${file_name}"
 
     print_info "Downloading: ${file_name}..."
 
@@ -656,10 +656,10 @@ EXAMPLES:
 
 REMOTE EXECUTION:
     # Execute directly from GitHub (default: master branch)
-    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/setup/java/setup-otel.sh)
+    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/src/setup/java/setup-otel.sh)
 
     # Use different branch
-    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/setup/java/setup-otel.sh) --branch java
+    bash <(curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/java/src/setup/java/setup-otel.sh) --branch java
 
 For more information, see: plan.md
 EOF
