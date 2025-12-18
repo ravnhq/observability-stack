@@ -1,61 +1,83 @@
-# Build stage
+# =================================
+# Builder Stage - Build Application
+# =================================
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and Prisma schema
 COPY package*.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Install dependencies
+# Install ALL dependencies (including dev) for building
 RUN npm ci --legacy-peer-deps
 
-# Set a dummy DATABASE_URL for Prisma generate (only needed for type generation)
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+# Set dummy DB_URL for Prisma generation (schema validation only)
+ENV DB_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
-# Generate Prisma client
+# Generate Prisma Client (creates node_modules/@prisma/client)
 RUN npx prisma generate
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the NestJS application (compiles TypeScript to JavaScript)
 RUN npm run build
 
-# Debug: verify dist exists
-RUN ls -la /app/dist
+# =================================
+# Dependencies Stage - Production Dependencies
+# =================================
+FROM node:22-alpine AS deps
 
-# Production stage
+WORKDIR /app
+
+# Copy package files and Prisma schema
+COPY package*.json ./
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
+
+# Install production dependencies
+RUN npm ci --omit=dev --legacy-peer-deps
+
+# Install prisma CLI for migrations (needed at runtime)
+RUN npm install prisma --save
+
+# Set dummy DB_URL for Prisma generation
+ENV DB_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+
+# Generate Prisma Client in production node_modules
+RUN npx prisma generate
+
+# =================================
+# Production Stage - Final Runtime Image
+# =================================
 FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
+# Copy package.json for metadata
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Copy production node_modules (includes @prisma/client and prisma CLI)
+COPY --from=deps /app/node_modules ./node_modules
 
-# Copy prisma files and generate client
+# Copy Prisma files (needed for migrations at runtime)
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN npx prisma generate
 
-# Copy built application and generated prisma client from builder stage
+# Copy compiled application from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/generated ./generated
 
-# Debug: verify dist exists
-RUN ls -la /app/dist
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001 && \
+    chown -R nestjs:nodejs /app
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
 
-# Expose port
-EXPOSE 3000
+# Expose application port
+EXPOSE ${SERVER_PORT:-3000}
 
-# Start the application
-CMD ["node", "dist/src/main.js"]
+# Run migrations and start the application
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

@@ -1,7 +1,14 @@
 #!/bin/bash
 
 # RAVN Observability Stack Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- [OPTIONS]
+# Options:
+#   --force          Force installation (overwrite existing)
+#   --branch <name>  Specify branch to install from (default: master)
+# Examples:
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s --
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- --branch develop
+#   curl -sSL https://raw.githubusercontent.com/ravnhq/observability-stack/master/install.sh | bash -s -- --force --branch java
 
 set -e
 
@@ -9,7 +16,50 @@ set -e
 REPO_URL="https://github.com/ravnhq/observability-stack"
 REPO_API="https://api.github.com/repos/ravnhq/observability-stack"
 INSTALL_DIR="observability"
-BRANCH="master"
+FORCE_INSTALL=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            FORCE_INSTALL=true
+            shift
+            ;;
+        --branch)
+            if [[ -z "$2" ]]; then
+                echo -e "${RED}Error: Missing value for --branch flag${NC}"
+                echo ""
+                echo "Usage: bash -s -- [OPTIONS]"
+                echo "Options:"
+                echo "  --force          Force installation (overwrite existing)"
+                echo "  --branch <name>  Specify branch to install from (default: master)"
+                echo ""
+                echo "Examples:"
+                echo "  bash -s -- --branch develop"
+                echo "  bash -s -- --force --branch java"
+                exit 1
+            fi
+            BRANCH="$2"
+            shift 2
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown argument: $1${NC}"
+            echo ""
+            echo "Usage: bash -s -- [OPTIONS]"
+            echo "Options:"
+            echo "  --force          Force installation (overwrite existing)"
+            echo "  --branch <name>  Specify branch to install from (default: master)"
+            echo ""
+            echo "Examples:"
+            echo "  bash -s --                        # Install from master branch"
+            echo "  bash -s -- --branch develop       # Install from develop branch"
+            echo "  bash -s -- --force --branch java  # Force install from java branch"
+            exit 1
+            ;;
+    esac
+done
+
+BRANCH="${BRANCH:-master}"
 
 # Colors
 RED='\033[0;31m'
@@ -76,13 +126,28 @@ check_dependencies() {
 check_existing_installation() {
     if [ -d "$INSTALL_DIR" ]; then
         print_warning "Directory '$INSTALL_DIR' already exists"
-        read -p "Overwrite? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Installation cancelled"
-            exit 0
+        
+        if [ "$FORCE_INSTALL" = true ]; then
+            print_status "Force flag set, overwriting..."
+            rm -rf "$INSTALL_DIR"
+            return
         fi
-        rm -rf "$INSTALL_DIR"
+        
+        # Check if we're running interactively
+        if [ -t 0 ]; then
+            read -p "Overwrite? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                print_status "Installation cancelled"
+                exit 0
+            fi
+            rm -rf "$INSTALL_DIR"
+        else
+            print_error "Cannot prompt for confirmation in non-interactive mode"
+            echo "  Use: curl -sSL ... | bash -s -- --force"
+            echo "  Or:  curl -sSL ... | bash -s -- --force --branch <branch>"
+            exit 1
+        fi
     fi
 }
 
@@ -118,10 +183,17 @@ download_src() {
         "docker-compose.yml"
         ".env.example"
         "config/alloy.alloy"
-        "config/grafana-datasources.yaml"
+        "config/grafana.ini"
         "config/loki.yaml"
         "config/mimir.yaml"
+        "config/mimir-runtime.yaml"
         "config/tempo.yaml"
+        "grafana/provisioning/alerting/grafana-rules.yaml"
+        "grafana/provisioning/alerting/contact-points.yaml"
+        "grafana/provisioning/datasources/datasources.yaml"
+        "grafana/provisioning/dashboards/dashboards.yaml"
+        "grafana/dashboards/red-dashboard.json"
+        "grafana/dashboards/use-dashboard.json"
     )
     
     local downloaded=0
@@ -188,7 +260,7 @@ print_completion() {
     echo "Next steps:"
     echo "  1. Start the stack:    cd $INSTALL_DIR && docker-compose up -d"
     echo "  2. Access Grafana:     http://localhost:3030 (admin/$GRAFANA_PASSWORD)"
-    echo "  3. Configure your app to send telemetry to localhost:4317"
+    echo "  3. Configure your app to send telemetry to localhost:4317 (GRPC) or localhost:4318 (HTTP)"
     echo "  4. Customize settings in $INSTALL_DIR/.env"
     echo ""
     echo "Commands:"
