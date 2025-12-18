@@ -302,7 +302,39 @@ download_template() {
         fi
     done
 
-    print_success "Downloaded ${downloaded}/${#TEMPLATE_FILES[@]} files successfully"
+    print_success "Downloaded ${downloaded}/${#TEMPLATE_FILES[@]} template files successfully"
+
+    # Download patch files (for patch strategy support)
+    local patch_dest="${template_dest}/patches"
+    mkdir -p "$patch_dest"
+
+    local patch_files=(
+        "application.properties.patch"
+        "application.yaml.patch"
+        "logback-pattern.patch"
+        ".env.patch"
+        "docker-compose-otel.yaml"
+    )
+
+    local patches_downloaded=0
+    for patch_file in "${patch_files[@]}"; do
+        local dest_file="${patch_dest}/${patch_file}"
+
+        if download_template_file "$template_name/patches" "$patch_file" "$dest_file"; then
+            ((patches_downloaded++))
+        else
+            print_warning "Failed to download patch file: ${patch_file}"
+        fi
+    done
+
+    if [[ $patches_downloaded -eq ${#patch_files[@]} ]]; then
+        print_success "Downloaded ${patches_downloaded}/${#patch_files[@]} patch files successfully"
+    else
+        print_warning "Downloaded ${patches_downloaded}/${#patch_files[@]} patch files (some failed)"
+        if [[ "$STRATEGY" == "patch" ]]; then
+            print_warning "Patch mode may not work correctly without all patch files"
+        fi
+    fi
 
     # Update TEMPLATE_DIR to point to temp directory
     TEMPLATE_DIR="$TEMP_DIR"
