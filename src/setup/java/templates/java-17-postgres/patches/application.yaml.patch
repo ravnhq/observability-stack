@@ -1,0 +1,17 @@
+# OTEL_CONFIG_START - OpenTelemetry Configuration - DO NOT MODIFY MANUALLY
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+# OTEL_CONFIG_END

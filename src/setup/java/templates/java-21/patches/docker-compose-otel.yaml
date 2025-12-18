@@ -1,0 +1,41 @@
+services:
+  app:
+    environment:
+      # OpenTelemetry Agent Configuration
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-spring-boot-app}
+      OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-1.0.0}
+      OTEL_DEPLOYMENT_ENVIRONMENT: ${OTEL_DEPLOYMENT_ENVIRONMENT:-development}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-otlp}
+      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-otlp}
+      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-otlp}
+      OTEL_RESOURCE_ATTRIBUTES: service.name=${OTEL_SERVICE_NAME:-spring-boot-app},service.version=${OTEL_SERVICE_VERSION:-1.0.0},deployment.environment=${OTEL_DEPLOYMENT_ENVIRONMENT:-development}
+      # OpenTelemetry Instrumentation Configuration
+      OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: ${OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED:-true}
+      OTEL_INSTRUMENTATION_SPRING_WEB_ENABLED: ${OTEL_INSTRUMENTATION_SPRING_WEB_ENABLED:-true}
+      # MDC Instrumentation for trace correlation in logs
+      OTEL_INSTRUMENTATION_COMMON_MDC_ENABLED: ${OTEL_INSTRUMENTATION_COMMON_MDC_ENABLED:-true}
+      OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE: ${OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro'
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
