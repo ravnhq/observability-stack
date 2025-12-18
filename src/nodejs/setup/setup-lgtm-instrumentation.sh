@@ -68,6 +68,7 @@ COMMON_PACKAGES=(
   "@opentelemetry/auto-instrumentations-node"
   "@opentelemetry/instrumentation"
   "@opentelemetry/instrumentation-http"
+  "prom-client"
 )
 
 EXPRESS_PACKAGES=(
@@ -228,6 +229,19 @@ replace_placeholder() {
   escaped="$(escape_sed "$value")"
   sed -e "s|$placeholder|$escaped|g" "$file" > "$file.tmp"
   mv "$file.tmp" "$file"
+}
+
+copy_template_file() {
+  local template="$1"
+  local destination="$2"
+
+  if [ ! -f "$template" ]; then
+    echo "❌ Missing template file: $template"
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$destination")"
+  cp "$template" "$destination"
 }
 
 backup_file() {
@@ -401,8 +415,14 @@ if [ "$FRAMEWORK" = "express" ]; then
 
   prepend_block_if_missing "$ENTRY_FILE" "startInstrumentation" "$EXPRESS_BOOTSTRAP"
 
+  METRICS_FILE="${SRC_DIR}/metrics.ts"
+  METRICS_TEMPLATE="${TEMPLATE_DIR}/metrics.ts.tpl"
+  backup_file "$METRICS_FILE"
+  copy_template_file "$METRICS_TEMPLATE" "$METRICS_FILE"
+
   SUMMARY_LINES+=("   - Instrumentation file: $INSTRUMENTATION_FILE")
   SUMMARY_LINES+=("   - Entry file patched: $ENTRY_FILE")
+  SUMMARY_LINES+=("   - Metrics helper: $METRICS_FILE (add middleware + /metrics route)")
 elif [ "$FRAMEWORK" = "nestjs" ]; then
   INSTRUMENTATION_FILE="${SRC_DIR}/instrumentation.ts"
   backup_file "$INSTRUMENTATION_FILE"
@@ -420,8 +440,20 @@ elif [ "$FRAMEWORK" = "nestjs" ]; then
 
   prepend_block_if_missing "$ENTRY_FILE" "startInstrumentation" "$NEST_BOOTSTRAP"
 
+  METRICS_SERVICE_FILE="${SRC_DIR}/common/services/metrics.service.ts"
+  METRICS_SERVICE_TEMPLATE="${TEMPLATE_DIR}/common/services/metrics.service.ts.tpl"
+  backup_file "$METRICS_SERVICE_FILE"
+  copy_template_file "$METRICS_SERVICE_TEMPLATE" "$METRICS_SERVICE_FILE"
+
+  METRICS_MIDDLEWARE_FILE="${SRC_DIR}/common/middleware/http-metrics.middleware.ts"
+  METRICS_MIDDLEWARE_TEMPLATE="${TEMPLATE_DIR}/common/middleware/http-metrics.middleware.ts.tpl"
+  backup_file "$METRICS_MIDDLEWARE_FILE"
+  copy_template_file "$METRICS_MIDDLEWARE_TEMPLATE" "$METRICS_MIDDLEWARE_FILE"
+
   SUMMARY_LINES+=("   - Instrumentation file: $INSTRUMENTATION_FILE")
   SUMMARY_LINES+=("   - Entry file patched: $ENTRY_FILE")
+  SUMMARY_LINES+=("   - Metrics service: $METRICS_SERVICE_FILE")
+  SUMMARY_LINES+=("   - HTTP metrics middleware: $METRICS_MIDDLEWARE_FILE (register in AppModule)")
 else
   INSTRUMENTATION_FILE="${PROJECT_ROOT}/instrumentation.ts"
   NODE_OTEL_FILE="${PROJECT_ROOT}/otel.ts"
@@ -446,9 +478,18 @@ else
   replace_placeholder "$NODE_OTEL_FILE" '__DEFAULT_SERVICE_NAME__' "$SERVICE_NAME"
   replace_placeholder "$NODE_OTEL_FILE" '__DEFAULT_SERVICE_VERSION__' "$SERVICE_VERSION"
 
+  LIB_METRICS_FILE="${PROJECT_ROOT}/lib/metrics.ts"
+  APP_METRICS_ROUTE="${PROJECT_ROOT}/app/metrics/route.ts"
+  backup_file "$LIB_METRICS_FILE"
+  backup_file "$APP_METRICS_ROUTE"
+  copy_template_file "${TEMPLATE_DIR}/lib/metrics.ts.tpl" "$LIB_METRICS_FILE"
+  copy_template_file "${TEMPLATE_DIR}/app/metrics/route.ts.tpl" "$APP_METRICS_ROUTE"
+
   SUMMARY_LINES+=("   - instrumentation.ts: $INSTRUMENTATION_FILE")
   SUMMARY_LINES+=("   - otel.ts: $NODE_OTEL_FILE")
   SUMMARY_LINES+=("   - next.config.ts: $NEXT_CONFIG_FILE")
+  SUMMARY_LINES+=("   - Metrics helper: $LIB_METRICS_FILE")
+  SUMMARY_LINES+=("   - /metrics route: $APP_METRICS_ROUTE")
 fi
 
 STACK_TARGET_EXISTS=false
