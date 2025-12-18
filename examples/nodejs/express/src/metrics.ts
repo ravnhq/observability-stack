@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import client from 'prom-client';
+import { trace } from '@opentelemetry/api';
+import client, { type ObserveDataWithExemplar, type OpenMetricsContentType } from 'prom-client';
 
-const register = new client.Registry();
+const register = new client.Registry<OpenMetricsContentType>();
+register.setContentType(client.Registry.OPENMETRICS_CONTENT_TYPE);
 
 client.collectDefaultMetrics({
   register,
@@ -25,10 +27,22 @@ const httpRequestDuration = new client.Histogram({
   labelNames: ['method', 'status', 'uri', 'outcome', 'exception', 'error'],
   buckets: histogramBuckets,
   registers: [register],
+  enableExemplars: true,
 });
 
 const EXCLUDED_PATHS = ['/metrics', '/health'];
 const metricsErrorLabel = 'none';
+
+type TraceContext = { traceId: string; spanId: string };
+
+const getTraceContext = (): TraceContext => {
+  const activeSpan = trace.getActiveSpan();
+  const spanContext = activeSpan?.spanContext();
+  if (spanContext?.traceId && spanContext?.spanId) {
+    return { traceId: spanContext.traceId, spanId: spanContext.spanId };
+  }
+  return { traceId: 'none', spanId: 'none' };
+};
 
 const shouldExcludePath = (path: string): boolean =>
   EXCLUDED_PATHS.some((excluded) => path === excluded || path.startsWith(`${excluded}/`));
@@ -89,17 +103,26 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
 
   res.on('finish', () => {
     const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
+    const labels = {
+      method: req.method,
+      status: res.statusCode.toString(),
+      uri: parameterizeRoute(req),
+      outcome: determineOutcome(res.statusCode),
+      exception: extractException(res),
+      error: metricsErrorLabel,
+    } as const;
+    const { traceId, spanId } = getTraceContext();
 
-    httpRequestDuration
-      .labels(
-        req.method,
-        res.statusCode.toString(),
-        parameterizeRoute(req),
-        determineOutcome(res.statusCode),
-        extractException(res),
-        metricsErrorLabel,
-      )
-      .observe(durationSeconds);
+    const observation: ObserveDataWithExemplar<string> = {
+      value: durationSeconds,
+      labels,
+      exemplarLabels: {
+        trace_id: traceId,
+        span_id: spanId,
+      },
+    };
+
+    httpRequestDuration.observe(observation);
   });
 
   next();
