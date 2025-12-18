@@ -295,7 +295,7 @@ download_template() {
         local dest_file="${template_dest}/${file}"
 
         if download_template_file "$template_name" "$file" "$dest_file"; then
-            ((downloaded++))
+            ((downloaded++)) || true
         else
             print_error "Failed to download: ${file} from branch '${BRANCH}'" false
             print_error "Template download failed - aborting" true
@@ -321,7 +321,7 @@ download_template() {
         local dest_file="${patch_dest}/${patch_file}"
 
         if download_template_file "$template_name/patches" "$patch_file" "$dest_file"; then
-            ((patches_downloaded++))
+            ((patches_downloaded++)) || true
         else
             print_warning "Failed to download patch file: ${patch_file}"
         fi
@@ -779,14 +779,14 @@ patch_configuration_files() {
         # Skip if target doesn't exist
         if [[ ! -f "$target" ]]; then
             print_info "Skipped: $target (file not found)"
-            ((FILES_SKIPPED++))
+            ((FILES_SKIPPED++)) || true
             continue
         fi
 
         # Check if patch file exists
         if [[ ! -f "$patch" ]]; then
             print_warning "Patch file not found: $patch"
-            ((FILES_FAILED++))
+            ((FILES_FAILED++)) || true
             continue
         fi
 
@@ -821,7 +821,7 @@ patch_configuration_files() {
         echo -e "  ${BLUE}3.${NC} Add javaagent to ENTRYPOINT/CMD:"
         echo -e "     ${YELLOW}java -javaagent:otel-javaagent.jar -jar app.jar${NC}"
         echo ""
-        ((FILES_SKIPPED++))
+        ((FILES_SKIPPED++)) || true
     else
         print_info "No Dockerfile found - you may need to create one with OTEL agent support"
     fi
@@ -849,7 +849,7 @@ copy_configuration_files() {
         # Check if source exists
         if [[ ! -f "$source_path" ]]; then
             print_warning "Template file not found: $source_path"
-            ((FILES_FAILED++))
+            ((FILES_FAILED++)) || true
             continue
         fi
 
@@ -859,30 +859,30 @@ copy_configuration_files() {
             case "$response" in
                 "yes")
                     if copy_file "$source_path" "$dest" "$description"; then
-                        ((FILES_COPIED++))
+                        ((FILES_COPIED++)) || true
                     else
-                        ((FILES_FAILED++))
+                        ((FILES_FAILED++)) || true
                     fi
                     ;;
                 "all")
                     overwrite_all=true
                     if copy_file "$source_path" "$dest" "$description"; then
-                        ((FILES_COPIED++))
+                        ((FILES_COPIED++)) || true
                     else
-                        ((FILES_FAILED++))
+                        ((FILES_FAILED++)) || true
                     fi
                     ;;
                 "no")
                     print_info "Skipped: $dest"
-                    ((FILES_SKIPPED++))
+                    ((FILES_SKIPPED++)) || true
                     ;;
             esac
         else
             # File doesn't exist or overwrite_all is true (including new projects)
             if copy_file "$source_path" "$dest" "$description"; then
-                ((FILES_COPIED++))
+                ((FILES_COPIED++)) || true
             else
-                ((FILES_FAILED++))
+                ((FILES_FAILED++)) || true
             fi
         fi
     done
@@ -904,7 +904,7 @@ create_environment_file() {
             # Patch existing .env
             if [[ ! -f "$env_patch_example" ]]; then
                 print_error "Patch file not found: $env_patch_example" false
-                ((FILES_FAILED++))
+                ((FILES_FAILED++)) || true
                 return 1
             fi
 
@@ -936,7 +936,7 @@ create_environment_file() {
             fi
 
             cp "$env_example" "$env_dest"
-            ((FILES_PATCHED++))
+            ((FILES_PATCHED++)) || true
             print_success "Created .env from .env.example"
             print_info "Please review and update values as needed"
         fi
