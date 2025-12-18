@@ -312,7 +312,7 @@ download_template() {
         "application.properties.patch"
         "application.yaml.patch"
         "logback-pattern.patch"
-        ".env.patch"
+        ".env.example"
         "docker-compose-otel.yaml"
     )
 
@@ -899,18 +899,18 @@ create_environment_file() {
     # Check strategy mode
     if [[ "$STRATEGY" == "patch" ]]; then
         local patch_dir="${TEMPLATE_DIR}/${template_dir}/patches"
-        local env_patch="${patch_dir}/.env.patch"
+        local env_patch_example="${patch_dir}/.env.example"
 
         if [[ -f "$env_dest" ]]; then
             # Patch existing .env
-            if [[ ! -f "$env_patch" ]]; then
-                print_error "Patch file not found: $env_patch" false
+            if [[ ! -f "$env_patch_example" ]]; then
+                print_error "Patch file not found: $env_patch_example" false
                 ((FILES_FAILED++))
                 return 1
             fi
 
             local result=0
-            append_marked_block_if_missing "$env_dest" "$env_patch" "Environment file"
+            append_marked_block_if_missing "$env_dest" "$env_patch_example" "Environment file"
             result=$?
 
             case $result in
