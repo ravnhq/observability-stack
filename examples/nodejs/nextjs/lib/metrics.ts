@@ -1,6 +1,8 @@
-import client from 'prom-client';
+import { trace } from '@opentelemetry/api';
+import client, { type ObserveDataWithExemplar, type OpenMetricsContentType } from 'prom-client';
 
-const register = new client.Registry();
+const register = new client.Registry<OpenMetricsContentType>();
+register.setContentType(client.Registry.OPENMETRICS_CONTENT_TYPE);
 client.collectDefaultMetrics({ register });
 
 const processUptimeGauge = new client.Gauge({
@@ -16,12 +18,24 @@ setInterval(() => {
 const HISTOGRAM_BUCKETS = [0.001, 0.005, 0.015, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 5, 10];
 const metricsErrorLabel = 'none';
 
+type TraceContext = { traceId: string; spanId: string };
+
+const getTraceContext = (): TraceContext => {
+  const activeSpan = trace.getActiveSpan();
+  const spanContext = activeSpan?.spanContext();
+  if (spanContext?.traceId && spanContext?.spanId) {
+    return { traceId: spanContext.traceId, spanId: spanContext.spanId };
+  }
+  return { traceId: 'none', spanId: 'none' };
+};
+
 const httpRequestDuration = new client.Histogram({
   name: 'http_server_requests_seconds',
   help: 'HTTP server request duration in seconds',
   labelNames: ['method', 'status', 'uri', 'outcome', 'exception', 'error'],
   buckets: HISTOGRAM_BUCKETS,
   registers: [register],
+  enableExemplars: true,
 });
 
 type Outcome =
@@ -54,16 +68,26 @@ export const startHttpRequestTimer = (method: string, uri: string): StopTimer =>
 
   return (status: number, exceptionLabel?: string) => {
     const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
-    httpRequestDuration
-      .labels(
-        method,
-        status.toString(),
-        uri,
-        determineOutcome(status),
-        exceptionLabel ?? defaultExceptionLabel(status),
-        metricsErrorLabel,
-      )
-      .observe(durationSeconds);
+    const labels = {
+      method,
+      status: status.toString(),
+      uri,
+      outcome: determineOutcome(status),
+      exception: exceptionLabel ?? defaultExceptionLabel(status),
+      error: metricsErrorLabel,
+    } as const;
+    const { traceId, spanId } = getTraceContext();
+
+    const observation: ObserveDataWithExemplar<string> = {
+      value: durationSeconds,
+      labels,
+      exemplarLabels: {
+        trace_id: traceId,
+        span_id: spanId,
+      },
+    };
+
+    httpRequestDuration.observe(observation);
   };
 };
 
