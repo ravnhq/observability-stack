@@ -542,7 +542,7 @@ create_environment_file() {
             return 0
         else
             print_info "Kept existing .env file"
-            return 1
+            return 0
         fi
     else
         cp "$env_example" "$env_dest"
