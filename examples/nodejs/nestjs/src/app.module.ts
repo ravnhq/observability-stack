@@ -18,11 +18,6 @@ const isProduction = process.env.NODE_ENV === 'production';
           ? {
             targets: [
               {
-                target: 'pino-opentelemetry-transport',
-                level: process.env.LOG_LEVEL || 'info',
-                options: {},
-              },
-              {
                 target: 'pino/file',
                 level: process.env.LOG_LEVEL || 'info',
                 options: { destination: 1 }, // stdout
