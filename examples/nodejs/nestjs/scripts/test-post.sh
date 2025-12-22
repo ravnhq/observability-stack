@@ -20,6 +20,10 @@ log_info "Delay range: ${MIN_DELAY}ms - ${MAX_DELAY}ms"
 log_info "Press Ctrl+C to stop"
 echo ""
 
+# Country and Company IDs cache
+COUNTRY_IDS=()
+COMPANY_IDS=()
+
 # Generate random string
 generate_random_string() {
     local length=$1
@@ -44,6 +48,66 @@ generate_password() {
     generate_random_string 12
 }
 
+# Fetch all countries and extract IDs
+fetch_countries() {
+    log_info "Fetching available countries..."
+
+    response=$(http_request "GET" "$API_URL/countries")
+    {
+        read -r body
+        read -r status_code
+    } < <(parse_response "$response")
+
+    if [ "$status_code" = "200" ]; then
+        # Extract country IDs
+        COUNTRY_IDS=($(echo "$body" | jq -r '.[].id' 2>/dev/null))
+
+        if [ ${#COUNTRY_IDS[@]} -eq 0 ]; then
+            log_error "No countries found in the system. Please create countries first."
+            return 1
+        else
+            log_info "Found ${#COUNTRY_IDS[@]} countries"
+            return 0
+        fi
+    else
+        log_error "Failed to fetch countries (status: $status_code)"
+        return 1
+    fi
+}
+
+# Fetch all companies and extract IDs
+fetch_companies() {
+    log_info "Fetching available companies..."
+
+    response=$(http_request "GET" "$API_URL/companies")
+    {
+        read -r body
+        read -r status_code
+    } < <(parse_response "$response")
+
+    if [ "$status_code" = "200" ]; then
+        # Extract company IDs
+        COMPANY_IDS=($(echo "$body" | jq -r '.[].id' 2>/dev/null))
+
+        if [ ${#COMPANY_IDS[@]} -eq 0 ]; then
+            log_error "No companies found in the system. Please create companies first."
+            return 1
+        else
+            log_info "Found ${#COMPANY_IDS[@]} companies"
+            return 0
+        fi
+    else
+        log_error "Failed to fetch companies (status: $status_code)"
+        return 1
+    fi
+}
+
+# Fetch countries and companies on startup
+log_info "Initializing..."
+fetch_countries || exit 1
+fetch_companies || exit 1
+echo ""
+
 # Main loop
 while true; do
     # Generate random user data
@@ -51,12 +115,21 @@ while true; do
     name=$(generate_name)
     password=$(generate_password)
 
+    # Select random country and company
+    random_country_index=$((RANDOM % ${#COUNTRY_IDS[@]}))
+    country_id=${COUNTRY_IDS[$random_country_index]}
+
+    random_company_index=$((RANDOM % ${#COMPANY_IDS[@]}))
+    company_id=${COMPANY_IDS[$random_company_index]}
+
     # Create JSON payload
     json_payload=$(jq -n \
         --arg email "$email" \
         --arg name "$name" \
         --arg password "$password" \
-        '{email: $email, name: $name, password: $password}')
+        --arg countryId "$country_id" \
+        --arg companyId "$company_id" \
+        '{email: $email, name: $name, password: $password, countryId: $countryId, companyId: $companyId}')
 
     log_info "Creating user..."
 
@@ -78,8 +151,10 @@ while true; do
         user_id=$(echo "$body" | jq -r '.id')
         user_email=$(echo "$body" | jq -r '.email')
         user_name=$(echo "$body" | jq -r '.name')
+        country_name=$(echo "$body" | jq -r '.country.name')
+        company_name=$(echo "$body" | jq -r '.company.name')
 
-        log_success "User created - ID: $user_id, Email: $user_email, Name: $user_name"
+        log_success "User created - ID: $user_id, Email: $user_email, Name: $user_name, Country: $country_name, Company: $company_name"
     else
         ((FAILED_REQUESTS++))
 

@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { CreateUserDto } from '../dtos/requests/create-user.dto';
@@ -25,8 +26,12 @@ export class UsersController {
   }
 
   @Get()
-  findAll(): Promise<UserDto[]> {
-    return this.usersService.findAll();
+  findAll(
+    @Query('companyId') companyId?: string,
+    @Query('countryId') countryId?: string
+  ): Promise<UserDto[]> {
+    const filters = { companyId, countryId };
+    return this.usersService.findAll(filters);
   }
 
   @Get(':id')

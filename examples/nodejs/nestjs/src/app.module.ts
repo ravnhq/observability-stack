@@ -5,6 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
+import { CountriesModule } from './countries/countries.module';
+import { CompaniesModule } from './companies/companies.module';
 import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middleware';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -38,6 +40,8 @@ const isProduction = process.env.NODE_ENV === 'production';
     }),
     CommonModule,
     UsersModule,
+    CountriesModule,
+    CompaniesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

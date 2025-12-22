@@ -18,6 +18,14 @@ export class UsersService {
     this.logger.info('Creating user');
     const user = await this.prisma.user.create({
       data: createUserDto,
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
     });
 
     this.logger.info({ userId: user.id }, 'User created');
@@ -25,10 +33,30 @@ export class UsersService {
     return plainToInstance(UserDto, user);
   }
 
-  async findAll(): Promise<UserDto[]> {
-    const users = await this.prisma.user.findMany();
+  async findAll(filters?: { companyId?: string; countryId?: string }): Promise<UserDto[]> {
+    const where: any = {};
 
-    this.logger.info({ count: users.length }, 'Fetched users');
+    if (filters?.companyId) {
+      where.companyId = filters.companyId;
+    }
+
+    if (filters?.countryId) {
+      where.countryId = filters.countryId;
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
+    });
+
+    this.logger.info({ count: users.length, filters }, 'Fetched users');
 
     return plainToInstance(UserDto, users);
   }
@@ -37,6 +65,14 @@ export class UsersService {
     this.logger.info({ userId: id }, 'Fetching user');
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -51,6 +87,14 @@ export class UsersService {
     this.logger.info('Finding user by email');
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
     });
 
     if (user) {
@@ -69,6 +113,14 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
     });
 
     this.logger.info({ userId: user.id }, 'User updated');
@@ -82,6 +134,14 @@ export class UsersService {
 
     const user = await this.prisma.user.delete({
       where: { id },
+      include: {
+        country: true,
+        company: {
+          include: {
+            country: true,
+          },
+        },
+      },
     });
 
     this.logger.info({ userId: user.id }, 'User removed');

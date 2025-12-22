@@ -6,13 +6,43 @@ datasource db {
   provider = "postgresql"
 }
 
+model Country {
+  id        String    @id @default(uuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  companies Company[]
+  users     User[]
+
+  @@map("countries")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  countryId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  users     User[]
+
+  @@map("companies")
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String
   password  String
+  countryId String
+  companyId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }

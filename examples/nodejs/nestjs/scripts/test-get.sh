@@ -97,8 +97,10 @@ while true; do
         # Extract user details from response
         user_email=$(echo "$body" | jq -r '.email')
         user_name=$(echo "$body" | jq -r '.name')
+        country_name=$(echo "$body" | jq -r '.country.name')
+        company_name=$(echo "$body" | jq -r '.company.name')
 
-        log_success "Retrieved user - Email: $user_email, Name: $user_name"
+        log_success "Retrieved user - Email: $user_email, Name: $user_name, Country: $country_name, Company: $company_name"
     else
         ((FAILED_REQUESTS++))
 
