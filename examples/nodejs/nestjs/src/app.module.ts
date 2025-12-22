@@ -8,6 +8,9 @@ import { UsersModule } from './users/users.module';
 import { CountriesModule } from './countries/countries.module';
 import { CompaniesModule } from './companies/companies.module';
 import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middleware';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'path';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -38,6 +41,13 @@ const isProduction = process.env.NODE_ENV === 'production';
         autoLogging: true,
       },
     }),
+
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      graphiql: true,
+    }),
+
     CommonModule,
     UsersModule,
     CountriesModule,
@@ -46,6 +56,7 @@ const isProduction = process.env.NODE_ENV === 'production';
   controllers: [AppController],
   providers: [AppService],
 })
+
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(HttpMetricsMiddleware).forRoutes('*');
