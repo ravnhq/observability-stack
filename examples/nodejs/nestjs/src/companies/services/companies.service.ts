@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../../common/services/prisma.service';
 import { CreateCompanyDto } from '../dtos/requests/create-company.dto';
 import { UpdateCompanyDto } from '../dtos/requests/update-company.dto';
 import { CompanyDto } from '../dtos/responses/company.dto';
+import { CompanyEntity } from '../entities/company.entity';
 
 @Injectable()
 export class CompaniesService {
@@ -25,7 +25,8 @@ export class CompaniesService {
 
     this.logger.info({ companyId: company.id }, 'Company created');
 
-    return plainToInstance(CompanyDto, company);
+    const entity = CompanyEntity.fromPrisma(company);
+    return entity.toResponseDto();
   }
 
   async findAll(): Promise<CompanyDto[]> {
@@ -37,7 +38,7 @@ export class CompaniesService {
 
     this.logger.info({ count: companies.length }, 'Fetched companies');
 
-    return plainToInstance(CompanyDto, companies);
+    return companies.map(company => CompanyEntity.fromPrisma(company).toResponseDto());
   }
 
   async findOne(id: string): Promise<CompanyDto> {
@@ -54,7 +55,8 @@ export class CompaniesService {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 
-    return plainToInstance(CompanyDto, company);
+    const entity = CompanyEntity.fromPrisma(company);
+    return entity.toResponseDto();
   }
 
   async update(id: string, updateCompanyDto: UpdateCompanyDto): Promise<CompanyDto> {
@@ -71,7 +73,8 @@ export class CompaniesService {
 
     this.logger.info({ companyId: company.id }, 'Company updated');
 
-    return plainToInstance(CompanyDto, company);
+    const entity = CompanyEntity.fromPrisma(company);
+    return entity.toResponseDto();
   }
 
   async remove(id: string): Promise<CompanyDto> {
@@ -87,6 +90,7 @@ export class CompaniesService {
 
     this.logger.info({ companyId: company.id }, 'Company removed');
 
-    return plainToInstance(CompanyDto, company);
+    const entity = CompanyEntity.fromPrisma(company);
+    return entity.toResponseDto();
   }
 }

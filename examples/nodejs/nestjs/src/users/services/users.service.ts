@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../../common/services/prisma.service';
 import { CreateUserDto } from '../dtos/requests/create-user.dto';
 import { UpdateUserDto } from '../dtos/requests/update-user.dto';
 import { UserDto } from '../dtos/responses/user.dto';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -28,9 +28,10 @@ export class UsersService {
       },
     });
 
-    this.logger.info({ userId: user.id }, 'User created');
+    const entity = UserEntity.fromPrisma(user);
+    this.logger.info(entity.toLogSafe(), 'User created');
 
-    return plainToInstance(UserDto, user);
+    return entity.toResponseDto();
   }
 
   async findAll(filters?: { companyId?: string; countryId?: string }): Promise<UserDto[]> {
@@ -58,7 +59,7 @@ export class UsersService {
 
     this.logger.info({ count: users.length, filters }, 'Fetched users');
 
-    return plainToInstance(UserDto, users);
+    return users.map(user => UserEntity.fromPrisma(user).toResponseDto());
   }
 
   async findOne(id: string): Promise<UserDto> {
@@ -80,7 +81,8 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    return plainToInstance(UserDto, user);
+    const entity = UserEntity.fromPrisma(user);
+    return entity.toResponseDto();
   }
 
   async findByEmail(email: string): Promise<UserDto> {
@@ -98,12 +100,13 @@ export class UsersService {
     });
 
     if (user) {
-      this.logger.info({ userId: user.id }, 'User found by email');
+      const entity = UserEntity.fromPrisma(user);
+      this.logger.info({ userId: user.id, displayName: entity.getDisplayName() }, 'User found by email');
+      return entity.toResponseDto();
     } else {
       this.logger.info('User not found by email');
+      return null as any;
     }
-
-    return plainToInstance(UserDto, user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDto> {
@@ -123,9 +126,10 @@ export class UsersService {
       },
     });
 
-    this.logger.info({ userId: user.id }, 'User updated');
+    const entity = UserEntity.fromPrisma(user);
+    this.logger.info(entity.toLogSafe(), 'User updated');
 
-    return plainToInstance(UserDto, user);
+    return entity.toResponseDto();
   }
 
   async remove(id: string): Promise<UserDto> {
@@ -144,8 +148,9 @@ export class UsersService {
       },
     });
 
-    this.logger.info({ userId: user.id }, 'User removed');
+    const entity = UserEntity.fromPrisma(user);
+    this.logger.info(entity.toLogSafe(), 'User removed');
 
-    return plainToInstance(UserDto, user);
+    return entity.toResponseDto();
   }
 }

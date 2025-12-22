@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../../common/services/prisma.service';
 import { CreateCountryDto } from '../dtos/requests/create-country.dto';
 import { UpdateCountryDto } from '../dtos/requests/update-country.dto';
 import { CountryDto } from '../dtos/responses/country.dto';
+import { CountryEntity } from '../entities/country.entity';
 
 @Injectable()
 export class CountriesService {
@@ -22,7 +22,8 @@ export class CountriesService {
 
     this.logger.info({ countryId: country.id }, 'Country created');
 
-    return plainToInstance(CountryDto, country);
+    const entity = CountryEntity.fromPrisma(country);
+    return entity.toResponseDto();
   }
 
   async findAll(): Promise<CountryDto[]> {
@@ -30,7 +31,7 @@ export class CountriesService {
 
     this.logger.info({ count: countries.length }, 'Fetched countries');
 
-    return plainToInstance(CountryDto, countries);
+    return countries.map(country => CountryEntity.fromPrisma(country).toResponseDto());
   }
 
   async findOne(id: string): Promise<CountryDto> {
@@ -44,7 +45,8 @@ export class CountriesService {
       throw new NotFoundException(`Country with ID ${id} not found`);
     }
 
-    return plainToInstance(CountryDto, country);
+    const entity = CountryEntity.fromPrisma(country);
+    return entity.toResponseDto();
   }
 
   async update(id: string, updateCountryDto: UpdateCountryDto): Promise<CountryDto> {
@@ -58,7 +60,8 @@ export class CountriesService {
 
     this.logger.info({ countryId: country.id }, 'Country updated');
 
-    return plainToInstance(CountryDto, country);
+    const entity = CountryEntity.fromPrisma(country);
+    return entity.toResponseDto();
   }
 
   async remove(id: string): Promise<CountryDto> {
@@ -71,6 +74,7 @@ export class CountriesService {
 
     this.logger.info({ countryId: country.id }, 'Country removed');
 
-    return plainToInstance(CountryDto, country);
+    const entity = CountryEntity.fromPrisma(country);
+    return entity.toResponseDto();
   }
 }
