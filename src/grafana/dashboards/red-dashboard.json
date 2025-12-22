@@ -963,7 +963,7 @@
           "targets": [
             {
               "editorMode": "code",
-              "expr": "topk(10,\n  sum by(queryid) (\n    rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n  )\n  * on(queryid) group_left(query)\n  pg_stat_statements_query_id{\n    query=~\".*($tables).*\", \n    query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n  }\n)",
+              "expr": "topk(10,\n  sum by(query) (\n    sum by(queryid) (\n      rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n    )\n    * on(queryid) group_left(query)\n    pg_stat_statements_query_id{\n      query=~\".*($tables).*\", \n      query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n    }\n  )\n)",
               "legendFormat": "{{query}}",
               "range": true,
               "refId": "A"
@@ -1054,7 +1054,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 152
+            "y": 42
           },
           "id": 2,
           "options": {
@@ -1152,7 +1152,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 159
+            "y": 49
           },
           "id": 13,
           "options": {
@@ -1255,7 +1255,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 159
+            "y": 49
           },
           "id": 12,
           "options": {
@@ -1370,7 +1370,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 58
           },
           "id": 11,
           "options": {
@@ -1476,7 +1476,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 66
           },
           "id": 16,
           "options": {
@@ -1577,7 +1577,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 66
           },
           "id": 17,
           "options": {
@@ -1652,7 +1652,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 36
+            "y": 74
           },
           "id": 23,
           "options": {
@@ -1683,7 +1683,7 @@
           "targets": [
             {
               "editorMode": "code",
-              "expr": "topk(10,\n  sum by(queryid, datname) (\n    rate(pg_stat_statements_seconds_total{datname!~\"template.*|postgres\"}[$__rate_interval])\n  )\n  * on(queryid) group_left(query)\n    pg_stat_statements_query_id{\n    query=~\".*($tables).*\", \n    query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n  }\n)",
+              "expr": "topk(10,\n  sum(\n    sum by(queryid, datname) (\n      rate(pg_stat_statements_seconds_total{datname!~\"template.*|postgres\"}[$__rate_interval])\n    )\n    * on(queryid) group_left(query)\n      pg_stat_statements_query_id{\n      query=~\".*($tables).*\", \n      query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n    }\n  ) by(query)\n)",
               "legendFormat": "{{query}}",
               "range": true,
               "refId": "A"
@@ -1762,7 +1762,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 82
           },
           "id": 26,
           "options": {
@@ -1784,7 +1784,7 @@
           "targets": [
             {
               "editorMode": "code",
-              "expr": "topk(10,\n  (\n    sum by(queryid, datname) (\n      rate(pg_stat_statements_seconds_total{datname!~\"template.*\"}[$__rate_interval])\n    )\n    /\n    sum by(queryid, datname) (\n      rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n    )\n  )\n  * on(queryid) group_left(query)\n    pg_stat_statements_query_id{\n    query=~\".*($tables).*\", \n    query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n  }\n)",
+              "expr": "topk(10,\nsum(\n    (\n      sum by(queryid, datname) (\n        rate(pg_stat_statements_seconds_total{datname!~\"template.*\"}[$__rate_interval])\n      )\n      /\n      sum by(queryid, datname) (\n        rate(pg_stat_statements_calls_total{datname!~\"template.*\"}[$__rate_interval])\n      )\n    )\n    * on(queryid) group_left(query)\n      pg_stat_statements_query_id{\n      query=~\".*($tables).*\", \n      query!~\".*(CREATE TABLE|REVOKE|GRANT|pg_catalog|information_schema|pg_stat).*\"\n    }\n  ) by(query)\n)",
               "legendFormat": "{{query}}",
               "range": true,
               "refId": "A"
@@ -1849,5 +1849,5 @@
   "timezone": "browser",
   "title": "RED Dashboard",
   "uid": "ad5zp69",
-  "version": 1
+  "version": 2
 }
