@@ -192,6 +192,7 @@ download_src() {
         "grafana/provisioning/alerting/contact-points.yaml"
         "grafana/provisioning/datasources/datasources.yaml"
         "grafana/provisioning/dashboards/dashboards.yaml"
+        "grafana/dashboards/graphql-red-dashboard.json"
         "grafana/dashboards/red-dashboard.json"
         "grafana/dashboards/use-dashboard.json"
     )
