@@ -2,19 +2,20 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: userdemo-agent-micrometer-postgres
+    container_name: postgres
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=all"]
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-userdemo}
-      POSTGRES_USER: ${POSTGRES_USER:-userdemo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-userdemo}
+      POSTGRES_DB: ${POSTGRES_DB:-mydb}
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - observability
+      - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-userdemo}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-mydb}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,16 +25,17 @@ services:
   # PostgreSQL Exporter for Prometheus metrics
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
-    container_name: userdemo-postgres-exporter
+    container_name: postgres-exporter
+    command: ['--collector.stat_statements', '--collector.stat_statements.include_query']
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-userdemo}:${POSTGRES_PASSWORD:-userdemo}@postgres:5432/${POSTGRES_DB:-userdemo}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@postgres:5432/${POSTGRES_DB:-mydb}?sslmode=disable"
     ports:
-      - "9187:9187"  # Postgres exporter metrics endpoint
+      - "9187:9187"  # Exposed for external scraping by LGTM stack
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - observability
+      - app-network
     restart: unless-stopped
 
   # ===========================================
@@ -45,48 +47,21 @@ services:
       dockerfile: Dockerfile
     container_name: express-app
     environment:
-      # Core app settings
       - NODE_ENV=production
-      - PORT=3000
-      
-      # Database connection
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-userdemo}:${POSTGRES_PASSWORD:-userdemo}@postgres:5432/${POSTGRES_DB:-userdemo}?schema=public
-      
-      # OpenTelemetry settings (matching your telemetry.ts)
-      - TELEMETRY_ENABLED=true
-      - SERVICE_NAME=express-app
-      - SERVICE_VERSION=1.0.0
-      - OTEL_COLLECTOR_URL=http://alloy:4318
-      - METRIC_EXPORT_INTERVAL=5000
-      
-      # Pyroscope profiling
-      - PYROSCOPE_ENABLED=true
-      - PYROSCOPE_ENDPOINT=http://pyroscope:4040
-      
-      # Logging
-      - LOG_LEVEL=info
-      - LOG_FORMAT=json
-      
-      # Application-specific
-      - API_PREFIX=/api/v1
-      - CORS_ORIGIN=*
-      - REQUEST_TIMEOUT=30000
-      
+      - PORT=${SERVER_PORT:-3000}
+      - DB_URL=${DB_URL:-postgres://myuser:mypassword@postgres:5432/mydb}
+      - OTEL_COLLECTOR_URL=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
+      - OTEL_SERVICE_NAME=nestjs-app
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
-      - '3000:3000'
+      - '${SERVER_PORT:-3000}:${SERVER_PORT:-3000}'
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - observability
-    # 🔧 Updated health check to match your app structure
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    command: ["npm", "run", "start:prod"]
+      - app-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   node_exporter:
@@ -101,13 +76,13 @@ services:
     volumes:
       - '/:/host:ro'
     networks:
-      - observability
+      - app-network
 
 volumes:
   postgres-data:
     driver: local
 
 networks:
-  observability:
+  app-network:
     driver: bridge
 

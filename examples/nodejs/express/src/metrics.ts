@@ -19,16 +19,14 @@ setInterval(() => {
   processUptimeGauge.set(process.uptime());
 }, 1000).unref();
 
-const histogramBuckets = [0.001, 0.005, 0.015, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1, 2, 5, 10];
-
 const httpRequestDuration = new client.Histogram({
-  name: 'http_server_requests_seconds',
-  help: 'HTTP server request duration in seconds',
-  labelNames: ['method', 'status', 'uri', 'outcome', 'exception', 'error'],
-  buckets: histogramBuckets,
-  registers: [register],
-  enableExemplars: true,
-});
+      name: 'http_server_requests_seconds',
+      help: 'HTTP server request duration in seconds',
+      labelNames: ['method', 'status', 'uri', 'outcome', 'exception', 'error'],
+      buckets: [0.001, 0.005, 0.015, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 2.0, 5.0, 10.0],
+      registers: [register],
+      enableExemplars: true,
+    });
 
 const EXCLUDED_PATHS = ['/metrics', '/health'];
 const metricsErrorLabel = 'none';
@@ -129,6 +127,6 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
 };
 
 export const metricsHandler = async (_req: Request, res: Response) => {
-  res.setHeader('Content-Type', register.contentType);
+  res.setHeader('Content-Type', 'application/openmetrics-text; version=1.0.0; charset=utf-8');
   res.send(await register.metrics());
 };
