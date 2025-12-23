@@ -51,7 +51,7 @@ services:
       - PORT=${SERVER_PORT:-3000}
       - DB_URL=${DB_URL:-postgres://myuser:mypassword@postgres:5432/mydb}
       - OTEL_COLLECTOR_URL=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
-      - OTEL_SERVICE_NAME=nestjs-app
+      - OTEL_SERVICE_NAME=express-app
       - LOG_LEVEL=${LOG_LEVEL:-info}
     ports:
       - '${SERVER_PORT:-3000}:${SERVER_PORT:-3000}'

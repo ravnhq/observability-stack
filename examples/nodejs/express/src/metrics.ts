@@ -110,7 +110,7 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
       error: metricsErrorLabel,
     } as const;
     const { traceId, spanId } = getTraceContext();
-
+    console.log('Trace Context:', { traceId, spanId });
     const observation: ObserveDataWithExemplar<string> = {
       value: durationSeconds,
       labels,

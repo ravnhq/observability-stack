@@ -154,7 +154,8 @@ services:
     container_name: grafana-tempo
     command: ["-config.expand-env=true", "-config.file=/etc/tempo/tempo.yaml"]
     ports:
-      - "${TEMPO_PORT:-3200}:${TEMPO_INTERNAL_PORT:-4317}"
+      - "${TEMPO_PORT:-3200}:3200"
+      - "${TEMPO_OTLP_GRPC_PORT:-4327}:4317"
     volumes:
       - ./config/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - ./data/tempo:/var/tempo
@@ -295,7 +296,7 @@ services:
       - GRAFANA_LOKI_TRACE_ID_REGEX=${GRAFANA_LOKI_TRACE_ID_REGEX:-"\"traceid\":\"(\\w+)\""}
 
       # Alerting
-      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL-http://tempo:3200}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
