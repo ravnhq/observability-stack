@@ -35,6 +35,10 @@ export class MetricsService implements OnModuleInit {
     return this.httpRequestHistogram;
   }
 
+  getRegistry(): promClient.Registry {
+    return this.registry;
+  }
+
   async getMetrics(): Promise<string> {
     return this.registry.metrics();
   }

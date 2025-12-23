@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
 import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middleware';
+import { TrpcModule } from './trpc/trpc.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -43,6 +44,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     }),
     CommonModule,
     UsersModule,
+    TrpcModule,
   ],
   controllers: [AppController],
   providers: [AppService],

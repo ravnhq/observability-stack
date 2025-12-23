@@ -20,7 +20,7 @@ export class UsersService {
   async findAll(): Promise<UserDto[]> {
     const users = await this.prisma.user.findMany();
 
-    return plainToInstance(UserDto, users)
+    return plainToInstance(UserDto, users) as unknown as UserDto[];
   }
 
   async findOne(id: string): Promise<UserDto> {
