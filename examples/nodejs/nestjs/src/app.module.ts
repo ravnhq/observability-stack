@@ -11,6 +11,8 @@ import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middlewa
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
+import { MetricsService } from './common/services/metrics.service';
+import { GraphQLMetricsPlugin } from './common/plugins/graphql-metrics.plugin';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -42,10 +44,14 @@ const isProduction = process.env.NODE_ENV === 'production';
       },
     }),
 
-    GraphQLModule.forRoot<ApolloDriverConfig>({
+    GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      graphiql: true,
+      inject: [MetricsService],
+      useFactory: (metricsService: MetricsService) => ({
+        autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+        graphiql: true,
+        plugins: [new GraphQLMetricsPlugin(metricsService)],
+      }),
     }),
 
     CommonModule,

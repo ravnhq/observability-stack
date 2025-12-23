@@ -6,7 +6,7 @@ import { trace } from '@opentelemetry/api';
 @Injectable()
 export class HttpMetricsMiddleware implements NestMiddleware {
   // Endpoints to exclude from metrics collection
-  private readonly excludedPaths = ['/metrics', '/health'];
+  private readonly excludedPaths = ['/metrics', '/health', '/graphql'];
 
   constructor(private readonly metricsService: MetricsService) { }
 
