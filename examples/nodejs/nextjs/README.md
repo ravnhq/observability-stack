@@ -39,6 +39,15 @@ Open [http://localhost:3000](http://localhost:3000) to view the dashboard that l
 	  -d '{"name":"Ship metrics","date":"2025-01-01"}'
 	```
 
+## Production build note (Next.js 16)
+
+This example includes a custom `webpack` configuration in `next.config.ts` (it forces a set of server-side packages to remain external).
+In Next.js 16, Turbopack is enabled by default and Next will error if it sees a `webpack` config without an explicit bundler choice.
+
+To keep builds deterministic, `package.json` uses:
+
+- `next build --webpack`
+
 ## Docker workflow
 
 The included `Dockerfile` builds a production Next.js image. The accompanying `docker-compose.yaml` stands up:

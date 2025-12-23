@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const connectionString =
-  process.env.DATABASE_URL ?? 'postgresql://userdemo:userdemo@localhost:5433/userdemo?schema=public';
+  process.env.DB_URL ?? 'postgresql://userdemo:userdemo@localhost:5433/userdemo?schema=public';
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
