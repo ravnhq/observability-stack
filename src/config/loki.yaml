@@ -83,7 +83,7 @@ ruler:
     local:
       directory: ${LOKI_DATA_PATH:-/loki}/rules
     s3:
-      bucketnames: ${S3_BUCKET_LOGS}
+      bucketnames: ${S3_BUCKET_RULES}
       region: ${AWS_REGION}
       access_key_id: ${AWS_ACCESS_KEY_ID}
       secret_access_key: ${AWS_SECRET_ACCESS_KEY}
