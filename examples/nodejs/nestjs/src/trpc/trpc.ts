@@ -2,8 +2,9 @@ import { initTRPC } from '@trpc/server';
 import { trace, context as otelContext, SpanStatusCode } from '@opentelemetry/api';
 import type { TrpcContext } from './trpc.context';
 import type { TrpcMetricsService } from './trpc.metrics';
+import type { UsersService } from '../users/services/users.service';
 
-export function createTrpcFactory(deps: { metrics: TrpcMetricsService }) {
+export function createTrpcFactory(deps: { metrics: TrpcMetricsService; usersService: UsersService }) {
   const t = initTRPC.context<TrpcContext>().create();
   const tracer = trace.getTracer('trpc');
 
@@ -77,6 +78,24 @@ export function createTrpcFactory(deps: { metrics: TrpcMetricsService }) {
     boom: publicProcedure.mutation(() => {
       throw new Error('boom');
     }),
+
+    users: {
+      list: publicProcedure.query(() => deps.usersService.findAll()),
+
+      get: publicProcedure
+        .input((value) => {
+          if (!value || typeof value !== 'object') {
+            throw new Error('Invalid input');
+          }
+          const v = value as Record<string, unknown>;
+          const id = String(v.id ?? '');
+          if (!id) {
+            throw new Error('Invalid input');
+          }
+          return { id };
+        })
+        .query(({ input }) => deps.usersService.findOne(input.id)),
+    },
   });
 
   return { t, appRouter };

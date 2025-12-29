@@ -5,13 +5,19 @@ import { TrpcMetricsService } from './trpc.metrics';
 import { createTrpcContext } from './trpc.context';
 import { createTrpcFactory } from './trpc';
 import { MetricsService } from '../common/services/metrics.service';
+import { UsersModule } from '../users/users.module';
+import { UsersService } from '../users/services/users.service';
 
 @Module({
+  imports: [UsersModule],
   providers: [TrpcMetricsService],
   exports: [TrpcMetricsService],
 })
 export class TrpcModule implements OnModuleInit {
-  constructor(private readonly trpcMetrics: TrpcMetricsService) {}
+  constructor(
+    private readonly trpcMetrics: TrpcMetricsService,
+    private readonly usersService: UsersService,
+  ) {}
 
   // no-op: wiring happens from bootstrap via app.get(TrpcModule) pattern
   onModuleInit() {}
@@ -19,7 +25,7 @@ export class TrpcModule implements OnModuleInit {
   mount(app: INestApplication) {
     const expressApp = app.getHttpAdapter().getInstance();
 
-    const { appRouter } = createTrpcFactory({ metrics: this.trpcMetrics });
+    const { appRouter } = createTrpcFactory({ metrics: this.trpcMetrics, usersService: this.usersService });
 
     expressApp.use(
       '/trpc',

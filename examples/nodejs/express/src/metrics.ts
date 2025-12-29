@@ -28,7 +28,7 @@ const httpRequestDuration = new client.Histogram({
       enableExemplars: true,
     });
 
-const EXCLUDED_PATHS = ['/metrics', '/health'];
+const EXCLUDED_PATHS = ['/api/metrics', '/api/health'];
 const metricsErrorLabel = 'none';
 
 type TraceContext = { traceId: string; spanId: string };
