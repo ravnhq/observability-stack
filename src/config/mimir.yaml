@@ -163,7 +163,7 @@ ruler_storage:
   filesystem:
     dir: ${MIMIR_DATA_PATH:/data}/rules
   s3:
-    bucket_name: ${S3_BUCKET_METRICS}
+    bucket_name: ${S3_BUCKET_RULES}
     region: ${AWS_REGION}
     access_key_id: ${AWS_ACCESS_KEY_ID}
     secret_access_key: ${AWS_SECRET_ACCESS_KEY}

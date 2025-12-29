@@ -21,6 +21,7 @@ services:
       # S3 Storage (if using S3)
       - AWS_REGION=${AWS_REGION}
       - S3_BUCKET_METRICS=${S3_BUCKET_METRICS}
+      - S3_BUCKET_RULES=${S3_BUCKET_RULES}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_SSE_TYPE=${S3_SSE_TYPE:-SSE-S3}
@@ -104,6 +105,7 @@ services:
       - "${LOKI_PORT:-3100}:${LOKI_INTERNAL_PORT:-3100}"
     volumes:
       - ./config/loki.yaml:/etc/loki/local-config.yaml:ro
+      # Loki runs as UID 10001 - on Linux ensure: sudo chown -R 10001:10001 ./data/loki
       - ./data/loki:/loki
     environment:
       # Server & Common Configuration
@@ -118,6 +120,7 @@ services:
 
       # S3 / Cloud Storage Configuration
       - S3_BUCKET_LOGS=${S3_BUCKET_LOGS}
+      - S3_BUCKET_RULES=${S3_BUCKET_RULES}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -157,6 +160,7 @@ services:
       - "${TEMPO_PORT:-3200}:${TEMPO_INTERNAL_PORT:-4317}"
     volumes:
       - ./config/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      # Tempo runs as UID 10001 - on Linux ensure: sudo chown -R 10001:10001 ./data/tempo
       - ./data/tempo:/var/tempo
     environment:
       # Server configuration
@@ -276,6 +280,7 @@ services:
     container_name: grafana
     ports:
       - "${GRAFANA_PORT:-3030}:${GRAFANA_PORT:-3030}"
+    # Grafana runs as UID 472 - on Linux ensure: sudo chown -R 472:472 ./data/grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=${GF_AUTH_ANONYMOUS_ORG_ROLE:-Admin}
